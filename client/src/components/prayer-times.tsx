@@ -32,7 +32,7 @@ export function PrayerTimes() {
 
   // Generate prayer times if none exist
   useEffect(() => {
-    if (prayers && prayers.length === 0) {
+    if (prayers && Array.isArray(prayers) && prayers.length === 0) {
       const prayerTimes = getCurrentPrayerTimes(location);
       const generateMutation = async () => {
         await apiRequest("POST", `/api/prayers/${today}/generate`, { prayerTimes });
@@ -50,7 +50,8 @@ export function PrayerTimes() {
     Isha: Star,
   };
 
-  const nextPrayer = prayers ? getNextPrayer(prayers) : null;
+  const prayersArray = Array.isArray(prayers) ? prayers : [];
+  const nextPrayer = prayersArray.length > 0 ? getNextPrayer(prayersArray) : null;
 
   if (isLoading) {
     return (
@@ -101,7 +102,7 @@ export function PrayerTimes() {
 
       {/* Prayer Times Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {prayers?.map((prayer: any) => {
+        {prayersArray?.map((prayer: any) => {
           const IconComponent = prayerIcons[prayer.name as keyof typeof prayerIcons] || Sun;
           const isNext = nextPrayer?.name === prayer.name;
           
@@ -217,7 +218,6 @@ export function PrayerTimes() {
           </div>
         </CardContent>
       </Card>
-    </div>
     </div>
   );
 }
