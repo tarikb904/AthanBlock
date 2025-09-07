@@ -46,10 +46,10 @@ export function useAuth(): AuthState & {
       console.log('Login successful, setting user data:', data.user);
       queryClient.setQueryData(["/api/user/profile"], data.user);
       
-      // Wait a bit for session to be properly set, then refetch profile
+      // Force a longer wait for session cookie to be set properly
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
-      }, 100);
+      }, 500);
     },
   });
 
@@ -62,10 +62,10 @@ export function useAuth(): AuthState & {
       console.log('Registration successful, setting user data:', data.user);
       queryClient.setQueryData(["/api/user/profile"], data.user);
       
-      // Wait a bit for session to be properly set, then refetch profile
+      // Force a longer wait for session cookie to be set properly
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
-      }, 100);
+      }, 500);
     },
   });
 

@@ -11,6 +11,9 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('.replit.dev'))) {
     res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    // Fallback for direct access
+    res.header('Access-Control-Allow-Origin', '*');
   }
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -33,13 +36,26 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: false, // Set to true in production with HTTPS
-    httpOnly: true, // Secure cookie handling
+    httpOnly: false, // Allow client-side access for Replit environment
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax', // Better for same-site requests
+    sameSite: 'none', // Required for cross-origin in Replit
     path: '/' // Explicit path
   },
-  name: 'connect.sid' // Standard session cookie name
+  name: 'sessionId' // Use a simpler name for debugging
 }));
+
+// Debug session middleware
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    console.log('=== SESSION DEBUG ===');
+    console.log('Path:', req.path);
+    console.log('Session ID:', req.session?.id);
+    console.log('Session userId:', req.session?.userId);
+    console.log('Cookies:', req.headers.cookie);
+    console.log('===================');
+  }
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
