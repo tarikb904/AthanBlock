@@ -22,6 +22,7 @@ export default function OnboardingPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // CRITICAL: Include session cookies
         body: JSON.stringify({
           name: userData.name,
           location: userData.location,
@@ -48,6 +49,7 @@ export default function OnboardingPage() {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include', // Include session cookies
           body: JSON.stringify({
             lat: parseFloat(userData.locationLat),
             lon: parseFloat(userData.locationLon),
@@ -62,6 +64,7 @@ export default function OnboardingPage() {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include', // Include session cookies
           body: JSON.stringify({
             lat: parseFloat(userData.locationLat),
             lon: parseFloat(userData.locationLon),
