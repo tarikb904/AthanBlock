@@ -4,7 +4,11 @@ import { storage } from "./storage";
 import { insertUserSchema, insertAdhkarSchema, insertTimeBlockSchema, insertReminderSchema } from "@shared/schema";
 import { z } from "zod";
 
-const currentUser = { id: "demo-user" }; // Simulate logged in user for demo
+// Authentication middleware to get current user from session
+function getCurrentUser(req: any) {
+  // For demo purposes, use session user ID or fallback to demo user
+  return req.session?.userId || "demo-user";
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -19,6 +23,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.createUser(userData);
+      // Set user session
+      (req as any).session.userId = user.id;
       res.json({ user: { id: user.id, email: user.email, name: user.name } });
     } catch (error) {
       res.status(400).json({ message: "Invalid user data" });
@@ -34,6 +40,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
+      // Set user session
+      (req as any).session.userId = user.id;
       res.json({ user: { id: user.id, email: user.email, name: user.name } });
     } catch (error) {
       res.status(400).json({ message: "Login failed" });
@@ -43,7 +51,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User profile routes
   app.get("/api/user/profile", async (req, res) => {
     try {
-      const user = await storage.getUser(currentUser.id);
+      const userId = getCurrentUser(req);
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -55,8 +64,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/user/profile", async (req, res) => {
     try {
+      const userId = getCurrentUser(req);
       const updates = req.body;
-      const user = await storage.updateUser(currentUser.id, updates);
+      const user = await storage.updateUser(userId, updates);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -69,8 +79,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Prayer routes
   app.get("/api/prayers/:date", async (req, res) => {
     try {
+      const userId = getCurrentUser(req);
       const { date } = req.params;
-      const prayers = await storage.getPrayersForUserAndDate(currentUser.id, date);
+      const prayers = await storage.getPrayersForUserAndDate(userId, date);
       res.json(prayers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch prayers" });
@@ -79,10 +90,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/prayers/:date/generate", async (req, res) => {
     try {
+      const userId = getCurrentUser(req);
       const { date } = req.params;
       const { prayerTimes } = req.body; // Array of prayer time objects
       
-      const prayers = await storage.createDailyPrayers(currentUser.id, date, prayerTimes);
+      const prayers = await storage.createDailyPrayers(userId, date, prayerTimes);
       res.json(prayers);
     } catch (error) {
       res.status(400).json({ message: "Failed to generate prayers" });
@@ -156,8 +168,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Time block routes
   app.get("/api/time-blocks/:date", async (req, res) => {
     try {
+      const userId = getCurrentUser(req);
       const { date } = req.params;
-      const timeBlocks = await storage.getTimeBlocksForUserAndDate(currentUser.id, date);
+      const timeBlocks = await storage.getTimeBlocksForUserAndDate(userId, date);
       res.json(timeBlocks);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch time blocks" });
@@ -175,8 +188,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/time-blocks/:date/copy-template", async (req, res) => {
     try {
+      const userId = getCurrentUser(req);
       const { date } = req.params;
-      const timeBlocks = await storage.copyTemplateToDate(currentUser.id, date);
+      const timeBlocks = await storage.copyTemplateToDate(userId, date);
       res.json(timeBlocks);
     } catch (error) {
       res.status(400).json({ message: "Failed to copy template" });
@@ -185,9 +199,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/time-blocks", async (req, res) => {
     try {
+      const userId = getCurrentUser(req);
       const timeBlockData = insertTimeBlockSchema.parse({
         ...req.body,
-        userId: currentUser.id
+        userId
       });
       const timeBlock = await storage.createTimeBlock(timeBlockData);
       res.json(timeBlock);
@@ -213,7 +228,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reminder routes
   app.get("/api/reminders", async (req, res) => {
     try {
-      const reminders = await storage.getRemindersForUser(currentUser.id);
+      const userId = getCurrentUser(req);
+      const reminders = await storage.getRemindersForUser(userId);
       res.json(reminders);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch reminders" });
@@ -222,9 +238,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/reminders", async (req, res) => {
     try {
+      const userId = getCurrentUser(req);
       const reminderData = insertReminderSchema.parse({
         ...req.body,
-        userId: currentUser.id
+        userId
       });
       const reminder = await storage.createReminder(reminderData);
       res.json(reminder);

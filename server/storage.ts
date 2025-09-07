@@ -44,6 +44,7 @@ export class MemStorage implements IStorage {
         transliteration: "Allahu la ilaha illa Huwa, Al-Hayyul-Qayyum...",
         category: "morning",
         repetitions: 1,
+        audioUrl: null,
         published: true,
         createdAt: new Date(),
       },
@@ -56,6 +57,7 @@ export class MemStorage implements IStorage {
         transliteration: "Subhan Allah",
         category: "morning",
         repetitions: 33,
+        audioUrl: null,
         published: true,
         createdAt: new Date(),
       }
@@ -113,7 +115,20 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id, createdAt: new Date() };
+    const user: User = {
+      id,
+      name: insertUser.name || null,
+      email: insertUser.email,
+      password: insertUser.password || null,
+      location: insertUser.location || null,
+      timezone: insertUser.timezone || null,
+      prayerMethod: insertUser.prayerMethod || null,
+      madhab: insertUser.madhab || null,
+      language: insertUser.language || null,
+      darkMode: insertUser.darkMode || null,
+      notifications: insertUser.notifications || null,
+      createdAt: new Date()
+    };
     this.users.set(id, user);
     return user;
   }
@@ -135,7 +150,15 @@ export class MemStorage implements IStorage {
 
   async createPrayer(insertPrayer: InsertPrayer): Promise<Prayer> {
     const id = randomUUID();
-    const prayer: Prayer = { ...insertPrayer, id, createdAt: new Date() };
+    const prayer: Prayer = {
+      id,
+      date: insertPrayer.date,
+      name: insertPrayer.name,
+      userId: insertPrayer.userId,
+      time: insertPrayer.time,
+      completed: insertPrayer.completed || null,
+      createdAt: new Date()
+    };
     this.prayers.set(id, prayer);
     return prayer;
   }
@@ -454,53 +477,107 @@ export class DrizzleStorage implements IStorage {
 
   // Prayer operations
   async getPrayersForUserAndDate(userId: string, date: string): Promise<Prayer[]> {
-    return await db.select().from(prayers)
-      .where(and(eq(prayers.userId, userId), eq(prayers.date, date)));
+    if (!db) return this.memoryFallback.getPrayersForUserAndDate(userId, date);
+    try {
+      return await db.select().from(prayers)
+        .where(and(eq(prayers.userId, userId), eq(prayers.date, date)));
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.getPrayersForUserAndDate(userId, date);
+    }
   }
 
   async createPrayer(insertPrayer: InsertPrayer): Promise<Prayer> {
-    const result = await db.insert(prayers).values(insertPrayer).returning();
-    return result[0];
+    if (!db) return this.memoryFallback.createPrayer(insertPrayer);
+    try {
+      const result = await db.insert(prayers).values(insertPrayer).returning();
+      return result[0];
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.createPrayer(insertPrayer);
+    }
   }
 
   async updatePrayer(id: string, updates: Partial<InsertPrayer>): Promise<Prayer | undefined> {
-    const result = await db.update(prayers).set(updates).where(eq(prayers.id, id)).returning();
-    return result[0];
+    if (!db) return this.memoryFallback.updatePrayer(id, updates);
+    try {
+      const result = await db.update(prayers).set(updates).where(eq(prayers.id, id)).returning();
+      return result[0];
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.updatePrayer(id, updates);
+    }
   }
 
   async createDailyPrayers(userId: string, date: string, prayerData: Omit<InsertPrayer, 'userId' | 'date'>[]): Promise<Prayer[]> {
-    const prayersToInsert = prayerData.map(prayer => ({
-      ...prayer,
-      userId,
-      date
-    }));
-    
-    return await db.insert(prayers).values(prayersToInsert).returning();
+    if (!db) return this.memoryFallback.createDailyPrayers(userId, date, prayerData);
+    try {
+      const prayersToInsert = prayerData.map(prayer => ({
+        ...prayer,
+        userId,
+        date
+      }));
+      
+      return await db.insert(prayers).values(prayersToInsert).returning();
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.createDailyPrayers(userId, date, prayerData);
+    }
   }
 
   // Adhkar operations
   async getAllAdhkar(): Promise<Adhkar[]> {
-    return await db.select().from(adhkar).where(eq(adhkar.published, true));
+    if (!db) return this.memoryFallback.getAllAdhkar();
+    try {
+      return await db.select().from(adhkar).where(eq(adhkar.published, true));
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.getAllAdhkar();
+    }
   }
 
   async getAdhkarByCategory(category: string): Promise<Adhkar[]> {
-    return await db.select().from(adhkar)
-      .where(and(eq(adhkar.category, category), eq(adhkar.published, true)));
+    if (!db) return this.memoryFallback.getAdhkarByCategory(category);
+    try {
+      return await db.select().from(adhkar)
+        .where(and(eq(adhkar.category, category), eq(adhkar.published, true)));
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.getAdhkarByCategory(category);
+    }
   }
 
   async createAdhkar(insertAdhkar: InsertAdhkar): Promise<Adhkar> {
-    const result = await db.insert(adhkar).values(insertAdhkar).returning();
-    return result[0];
+    if (!db) return this.memoryFallback.createAdhkar(insertAdhkar);
+    try {
+      const result = await db.insert(adhkar).values(insertAdhkar).returning();
+      return result[0];
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.createAdhkar(insertAdhkar);
+    }
   }
 
   async updateAdhkar(id: string, updates: Partial<InsertAdhkar>): Promise<Adhkar | undefined> {
-    const result = await db.update(adhkar).set(updates).where(eq(adhkar.id, id)).returning();
-    return result[0];
+    if (!db) return this.memoryFallback.updateAdhkar(id, updates);
+    try {
+      const result = await db.update(adhkar).set(updates).where(eq(adhkar.id, id)).returning();
+      return result[0];
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.updateAdhkar(id, updates);
+    }
   }
 
   async deleteAdhkar(id: string): Promise<boolean> {
-    const result = await db.delete(adhkar).where(eq(adhkar.id, id));
-    return result.rowCount > 0;
+    if (!db) return this.memoryFallback.deleteAdhkar(id);
+    try {
+      const result = await db.delete(adhkar).where(eq(adhkar.id, id));
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.deleteAdhkar(id);
+    }
   }
 
   // Time block operations
