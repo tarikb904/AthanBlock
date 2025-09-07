@@ -11,12 +11,36 @@ import {
   type InsertTimeBlock,
   type Reminder,
   type InsertReminder,
+  type Project,
+  type InsertProject,
+  type Label,
+  type InsertLabel,
+  type Task,
+  type InsertTask,
+  type TaskTemplate,
+  type InsertTaskTemplate,
+  type Collaboration,
+  type InsertCollaboration,
+  type ActivityFeed,
+  type InsertActivityFeed,
+  type SavedFilter,
+  type InsertSavedFilter,
+  type TaskLabel,
+  type InsertTaskLabel,
   users,
   prayers,
   prayerTimes,
   adhkar,
   timeBlocks,
-  reminders
+  reminders,
+  projects,
+  labels,
+  tasks,
+  taskTemplates,
+  collaborations,
+  activityFeed,
+  savedFilters,
+  taskLabels
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -31,9 +55,20 @@ export class MemStorage implements IStorage {
   private adhkarList: Map<string, Adhkar> = new Map();
   private timeBlocksList: Map<string, TimeBlock> = new Map();
   private remindersList: Map<string, Reminder> = new Map();
+  
+  // Phase 1 & 2 storage
+  private projectsList: Map<string, Project> = new Map();
+  private labelsList: Map<string, Label> = new Map();
+  private tasksList: Map<string, Task> = new Map();
+  private taskTemplatesList: Map<string, TaskTemplate> = new Map();
+  private collaborationsList: Map<string, Collaboration> = new Map();
+  private activityFeedList: Map<string, ActivityFeed> = new Map();
+  private savedFiltersList: Map<string, SavedFilter> = new Map();
+  private taskLabelsList: Map<string, TaskLabel> = new Map();
 
   constructor() {
     this.initializeDefaultData();
+    this.initializeIslamicDefaults();
   }
 
   private initializeDefaultData() {
@@ -326,6 +361,387 @@ export class MemStorage implements IStorage {
   async deleteReminder(id: string): Promise<boolean> {
     return this.remindersList.delete(id);
   }
+
+  // Initialize Islamic defaults for Phase 1 & 2
+  private initializeIslamicDefaults() {
+    // Default Islamic labels
+    const defaultLabels: Label[] = [
+      {
+        id: randomUUID(),
+        userId: 'system',
+        name: 'urgent',
+        color: '#ef4444',
+        isSystemLabel: true,
+        usageCount: 0,
+        createdAt: new Date(),
+      },
+      {
+        id: randomUUID(),
+        userId: 'system',
+        name: 'fard',
+        color: '#dc2626',
+        isSystemLabel: true,
+        usageCount: 0,
+        createdAt: new Date(),
+      },
+      {
+        id: randomUUID(),
+        userId: 'system',
+        name: 'sunnah',
+        color: '#2563eb',
+        isSystemLabel: true,
+        usageCount: 0,
+        createdAt: new Date(),
+      },
+      {
+        id: randomUUID(),
+        userId: 'system',
+        name: 'nafl',
+        color: '#16a34a',
+        isSystemLabel: true,
+        usageCount: 0,
+        createdAt: new Date(),
+      },
+      {
+        id: randomUUID(),
+        userId: 'system',
+        name: 'adhkar',
+        color: '#7c3aed',
+        isSystemLabel: true,
+        usageCount: 0,
+        createdAt: new Date(),
+      },
+      {
+        id: randomUUID(),
+        userId: 'system',
+        name: 'dua',
+        color: '#4f46e5',
+        isSystemLabel: true,
+        usageCount: 0,
+        createdAt: new Date(),
+      },
+    ];
+    
+    defaultLabels.forEach(label => this.labelsList.set(label.id, label));
+
+    // Default Islamic task templates
+    const defaultTemplates: TaskTemplate[] = [
+      {
+        id: randomUUID(),
+        createdBy: 'system',
+        name: 'Morning Islamic Routine',
+        description: 'Comprehensive morning Islamic practices',
+        category: 'morning_routine',
+        islamicCategory: 'sunnah',
+        tasks: [
+          {
+            title: 'Fajr Prayer',
+            islamicPriority: 1,
+            prayerRelated: true,
+            beforePrayer: '',
+            afterPrayer: '',
+            estimatedMinutes: 10
+          },
+          {
+            title: 'Morning Adhkar',
+            islamicPriority: 3,
+            estimatedMinutes: 15
+          },
+          {
+            title: 'Quran Reading',
+            islamicPriority: 3,
+            estimatedMinutes: 20
+          }
+        ],
+        isPublic: true,
+        isSystemTemplate: true,
+        usageCount: 0,
+        rating: 5,
+        tags: ['morning', 'daily', 'routine'],
+        createdAt: new Date(),
+      },
+      {
+        id: randomUUID(),
+        createdBy: 'system',
+        name: 'Evening Islamic Routine',
+        description: 'Essential evening Islamic practices',
+        category: 'evening_routine',
+        islamicCategory: 'sunnah',
+        tasks: [
+          {
+            title: 'Maghrib Prayer',
+            islamicPriority: 1,
+            prayerRelated: true,
+            estimatedMinutes: 10
+          },
+          {
+            title: 'Evening Adhkar',
+            islamicPriority: 3,
+            estimatedMinutes: 10
+          },
+          {
+            title: 'Isha Prayer',
+            islamicPriority: 1,
+            prayerRelated: true,
+            estimatedMinutes: 10
+          }
+        ],
+        isPublic: true,
+        isSystemTemplate: true,
+        usageCount: 0,
+        rating: 5,
+        tags: ['evening', 'daily', 'routine'],
+        createdAt: new Date(),
+      }
+    ];
+
+    defaultTemplates.forEach(template => this.taskTemplatesList.set(template.id, template));
+  }
+
+  // Project operations
+  async getProjectsForUser(userId: string): Promise<Project[]> {
+    return Array.from(this.projectsList.values()).filter(
+      project => project.userId === userId && !project.isArchived
+    );
+  }
+
+  async getProjectHierarchy(userId: string): Promise<Project[]> {
+    const userProjects = await this.getProjectsForUser(userId);
+    return userProjects.sort((a, b) => a.orderIndex - b.orderIndex);
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const id = randomUUID();
+    const project: Project = { ...insertProject, id, createdAt: new Date() };
+    this.projectsList.set(id, project);
+    return project;
+  }
+
+  async updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined> {
+    const project = this.projectsList.get(id);
+    if (!project) return undefined;
+    const updatedProject = { ...project, ...updates };
+    this.projectsList.set(id, updatedProject);
+    return updatedProject;
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    return this.projectsList.delete(id);
+  }
+
+  // Label operations
+  async getLabelsForUser(userId: string): Promise<Label[]> {
+    return Array.from(this.labelsList.values()).filter(
+      label => label.userId === userId || label.isSystemLabel
+    );
+  }
+
+  async createLabel(insertLabel: InsertLabel): Promise<Label> {
+    const id = randomUUID();
+    const label: Label = { ...insertLabel, id, createdAt: new Date(), usageCount: 0 };
+    this.labelsList.set(id, label);
+    return label;
+  }
+
+  async updateLabel(id: string, updates: Partial<InsertLabel>): Promise<Label | undefined> {
+    const label = this.labelsList.get(id);
+    if (!label) return undefined;
+    const updatedLabel = { ...label, ...updates };
+    this.labelsList.set(id, updatedLabel);
+    return updatedLabel;
+  }
+
+  async deleteLabel(id: string): Promise<boolean> {
+    return this.labelsList.delete(id);
+  }
+
+  // Advanced Task operations
+  async getTasksForUser(userId: string): Promise<Task[]> {
+    return Array.from(this.tasksList.values()).filter(
+      task => task.userId === userId || task.assignedToUserId === userId
+    );
+  }
+
+  async getTasksByProject(projectId: string): Promise<Task[]> {
+    return Array.from(this.tasksList.values()).filter(
+      task => task.projectId === projectId
+    );
+  }
+
+  async getTasksByStatus(userId: string, status: string): Promise<Task[]> {
+    return Array.from(this.tasksList.values()).filter(
+      task => (task.userId === userId || task.assignedToUserId === userId) && task.status === status
+    );
+  }
+
+  async getTasksByIslamicPriority(userId: string, priority: number): Promise<Task[]> {
+    return Array.from(this.tasksList.values()).filter(
+      task => (task.userId === userId || task.assignedToUserId === userId) && task.islamicPriority === priority
+    );
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const id = randomUUID();
+    const task: Task = { 
+      ...insertTask, 
+      id, 
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.tasksList.set(id, task);
+    
+    // Create activity feed entry
+    await this.createActivityFeed({
+      userId: task.userId,
+      actorId: task.userId,
+      action: 'task_created',
+      entityType: 'task',
+      entityId: id,
+      metadata: { taskTitle: task.title }
+    });
+
+    return task;
+  }
+
+  async updateTask(id: string, updates: Partial<InsertTask>): Promise<Task | undefined> {
+    const task = this.tasksList.get(id);
+    if (!task) return undefined;
+    const updatedTask = { ...task, ...updates, updatedAt: new Date() };
+    this.tasksList.set(id, updatedTask);
+
+    // Create activity feed entry
+    await this.createActivityFeed({
+      userId: task.userId,
+      actorId: task.userId,
+      action: 'task_updated',
+      entityType: 'task',
+      entityId: id,
+      metadata: { changes: updates }
+    });
+
+    return updatedTask;
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    const task = this.tasksList.get(id);
+    if (task) {
+      await this.createActivityFeed({
+        userId: task.userId,
+        actorId: task.userId,
+        action: 'task_deleted',
+        entityType: 'task',
+        entityId: id,
+        metadata: { taskTitle: task.title }
+      });
+    }
+    return this.tasksList.delete(id);
+  }
+
+  // Task Template operations
+  async getTaskTemplates(): Promise<TaskTemplate[]> {
+    return Array.from(this.taskTemplatesList.values()).filter(template => template.isPublic || template.isSystemTemplate);
+  }
+
+  async getTaskTemplatesForUser(userId: string): Promise<TaskTemplate[]> {
+    return Array.from(this.taskTemplatesList.values()).filter(
+      template => template.createdBy === userId || template.isPublic || template.isSystemTemplate
+    );
+  }
+
+  async createTaskTemplate(insertTemplate: InsertTaskTemplate): Promise<TaskTemplate> {
+    const id = randomUUID();
+    const template: TaskTemplate = { 
+      ...insertTemplate, 
+      id, 
+      createdAt: new Date(),
+      usageCount: 0,
+      rating: 0
+    };
+    this.taskTemplatesList.set(id, template);
+    return template;
+  }
+
+  async updateTaskTemplate(id: string, updates: Partial<InsertTaskTemplate>): Promise<TaskTemplate | undefined> {
+    const template = this.taskTemplatesList.get(id);
+    if (!template) return undefined;
+    const updatedTemplate = { ...template, ...updates };
+    this.taskTemplatesList.set(id, updatedTemplate);
+    return updatedTemplate;
+  }
+
+  async deleteTaskTemplate(id: string): Promise<boolean> {
+    return this.taskTemplatesList.delete(id);
+  }
+
+  // Collaboration operations
+  async getCollaborationsForUser(userId: string): Promise<Collaboration[]> {
+    return Array.from(this.collaborationsList.values()).filter(
+      collab => collab.ownerId === userId || collab.collaboratorId === userId
+    );
+  }
+
+  async createCollaboration(insertCollaboration: InsertCollaboration): Promise<Collaboration> {
+    const id = randomUUID();
+    const collaboration: Collaboration = { 
+      ...insertCollaboration, 
+      id, 
+      invitedAt: new Date()
+    };
+    this.collaborationsList.set(id, collaboration);
+    return collaboration;
+  }
+
+  async updateCollaboration(id: string, updates: Partial<InsertCollaboration>): Promise<Collaboration | undefined> {
+    const collaboration = this.collaborationsList.get(id);
+    if (!collaboration) return undefined;
+    const updatedCollaboration = { ...collaboration, ...updates };
+    if (updates.status === 'accepted' && !collaboration.acceptedAt) {
+      updatedCollaboration.acceptedAt = new Date();
+    }
+    this.collaborationsList.set(id, updatedCollaboration);
+    return updatedCollaboration;
+  }
+
+  // Activity Feed operations
+  async getActivityFeedForUser(userId: string): Promise<ActivityFeed[]> {
+    return Array.from(this.activityFeedList.values())
+      .filter(activity => activity.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, 50); // Latest 50 activities
+  }
+
+  async createActivityFeed(insertActivity: InsertActivityFeed): Promise<ActivityFeed> {
+    const id = randomUUID();
+    const activity: ActivityFeed = { ...insertActivity, id, createdAt: new Date() };
+    this.activityFeedList.set(id, activity);
+    return activity;
+  }
+
+  // Saved Filters operations
+  async getSavedFiltersForUser(userId: string): Promise<SavedFilter[]> {
+    return Array.from(this.savedFiltersList.values())
+      .filter(filter => filter.userId === userId)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+  }
+
+  async createSavedFilter(insertFilter: InsertSavedFilter): Promise<SavedFilter> {
+    const id = randomUUID();
+    const filter: SavedFilter = { ...insertFilter, id, createdAt: new Date() };
+    this.savedFiltersList.set(id, filter);
+    return filter;
+  }
+
+  async updateSavedFilter(id: string, updates: Partial<InsertSavedFilter>): Promise<SavedFilter | undefined> {
+    const filter = this.savedFiltersList.get(id);
+    if (!filter) return undefined;
+    const updatedFilter = { ...filter, ...updates };
+    this.savedFiltersList.set(id, updatedFilter);
+    return updatedFilter;
+  }
+
+  async deleteSavedFilter(id: string): Promise<boolean> {
+    return this.savedFiltersList.delete(id);
+  }
 }
 
 export interface IStorage {
@@ -366,6 +782,52 @@ export interface IStorage {
   createReminder(reminder: InsertReminder): Promise<Reminder>;
   updateReminder(id: string, updates: Partial<InsertReminder>): Promise<Reminder | undefined>;
   deleteReminder(id: string): Promise<boolean>;
+
+  // Phase 1 & 2: Advanced Islamic Task Management Operations
+
+  // Project operations
+  getProjectsForUser(userId: string): Promise<Project[]>;
+  getProjectHierarchy(userId: string): Promise<Project[]>;
+  createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined>;
+  deleteProject(id: string): Promise<boolean>;
+
+  // Label operations
+  getLabelsForUser(userId: string): Promise<Label[]>;
+  createLabel(label: InsertLabel): Promise<Label>;
+  updateLabel(id: string, updates: Partial<InsertLabel>): Promise<Label | undefined>;
+  deleteLabel(id: string): Promise<boolean>;
+
+  // Advanced Task operations
+  getTasksForUser(userId: string): Promise<Task[]>;
+  getTasksByProject(projectId: string): Promise<Task[]>;
+  getTasksByStatus(userId: string, status: string): Promise<Task[]>;
+  getTasksByIslamicPriority(userId: string, priority: number): Promise<Task[]>;
+  createTask(task: InsertTask): Promise<Task>;
+  updateTask(id: string, updates: Partial<InsertTask>): Promise<Task | undefined>;
+  deleteTask(id: string): Promise<boolean>;
+
+  // Task Template operations
+  getTaskTemplates(): Promise<TaskTemplate[]>;
+  getTaskTemplatesForUser(userId: string): Promise<TaskTemplate[]>;
+  createTaskTemplate(template: InsertTaskTemplate): Promise<TaskTemplate>;
+  updateTaskTemplate(id: string, updates: Partial<InsertTaskTemplate>): Promise<TaskTemplate | undefined>;
+  deleteTaskTemplate(id: string): Promise<boolean>;
+
+  // Collaboration operations
+  getCollaborationsForUser(userId: string): Promise<Collaboration[]>;
+  createCollaboration(collaboration: InsertCollaboration): Promise<Collaboration>;
+  updateCollaboration(id: string, updates: Partial<InsertCollaboration>): Promise<Collaboration | undefined>;
+
+  // Activity Feed operations
+  getActivityFeedForUser(userId: string): Promise<ActivityFeed[]>;
+  createActivityFeed(activity: InsertActivityFeed): Promise<ActivityFeed>;
+
+  // Saved Filters operations
+  getSavedFiltersForUser(userId: string): Promise<SavedFilter[]>;
+  createSavedFilter(filter: InsertSavedFilter): Promise<SavedFilter>;
+  updateSavedFilter(id: string, updates: Partial<InsertSavedFilter>): Promise<SavedFilter | undefined>;
+  deleteSavedFilter(id: string): Promise<boolean>;
 }
 
 // Initialize PostgreSQL client

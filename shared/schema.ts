@@ -155,14 +155,14 @@ export const planBlocks = pgTable("plan_blocks", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Islamic Project Categories and Hierarchy
-export const projects = pgTable("projects", {
+// Islamic Project Categories and Hierarchy  
+export const projects: any = pgTable("projects", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   category: varchar("category", { length: 100 }).notNull(), // 'ibadah', 'dunya', 'family', 'work', 'learning'
-  parentProjectId: uuid("parent_project_id").references(() => projects.id), // for hierarchy
+  parentProjectId: uuid("parent_project_id"), // for hierarchy - self-reference
   color: varchar("color", { length: 20 }).default("#3b82f6"),
   icon: varchar("icon", { length: 50 }).default("folder"),
   isArchived: boolean("is_archived").default(false),
@@ -183,7 +183,7 @@ export const labels = pgTable("labels", {
 });
 
 // Advanced Tasks with Islamic Features
-export const tasks = pgTable("tasks", {
+export const tasks: any = pgTable("tasks", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   projectId: uuid("project_id").references(() => projects.id),
   userId: uuid("user_id").references(() => users.id).notNull(),
@@ -214,7 +214,7 @@ export const tasks = pgTable("tasks", {
   
   // Organization
   orderIndex: integer("order_index").default(0),
-  parentTaskId: uuid("parent_task_id").references(() => tasks.id), // for subtasks
+  parentTaskId: uuid("parent_task_id"), // for subtasks - self-reference
   
   // Collaboration
   comments: jsonb("comments").default([]), // array of comment objects
@@ -380,11 +380,6 @@ export const insertPlanBlockSchema = createInsertSchema(planBlocks).omit({
   completedAt: true,
 });
 
-export const insertTaskSchema = createInsertSchema(tasks).omit({
-  id: true,
-  createdAt: true,
-  completedAt: true,
-});
 
 export const insertDeviceSchema = createInsertSchema(devices).omit({
   id: true,
