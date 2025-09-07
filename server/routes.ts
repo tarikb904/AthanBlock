@@ -6,7 +6,14 @@ import {
   insertAdhkarSchema, 
   insertTimeBlockSchema, 
   insertReminderSchema,
-  insertPrayerTimesSchema 
+  insertPrayerTimesSchema,
+  insertProjectSchema,
+  insertLabelSchema,
+  insertTaskSchema,
+  insertTaskTemplateSchema,
+  insertCollaborationSchema,
+  insertActivityFeedSchema,
+  insertSavedFilterSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { 
@@ -625,6 +632,464 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to get prayer settings options" });
+    }
+  });
+
+  // ===============================================
+  // PHASE 1 & 2: Advanced Islamic Task Management
+  // ===============================================
+
+  // Projects API - Islamic Project Hierarchy
+  app.get("/api/projects", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const projects = await storage.getProjectHierarchy(userId);
+      res.json(projects);
+    } catch (error) {
+      console.error("Get projects error:", error);
+      res.status(500).json({ message: "Failed to get projects" });
+    }
+  });
+
+  app.post("/api/projects", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const validatedData = insertProjectSchema.parse({ ...req.body, userId });
+      const project = await storage.createProject(validatedData);
+      res.json(project);
+    } catch (error) {
+      console.error("Create project error:", error);
+      res.status(400).json({ message: "Invalid project data" });
+    }
+  });
+
+  app.put("/api/projects/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const updatedProject = await storage.updateProject(req.params.id, req.body);
+      if (!updatedProject) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(updatedProject);
+    } catch (error) {
+      console.error("Update project error:", error);
+      res.status(400).json({ message: "Invalid project update data" });
+    }
+  });
+
+  app.delete("/api/projects/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const success = await storage.deleteProject(req.params.id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Delete project error:", error);
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+
+  // Smart Labels API
+  app.get("/api/labels", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const labels = await storage.getLabelsForUser(userId);
+      res.json(labels);
+    } catch (error) {
+      console.error("Get labels error:", error);
+      res.status(500).json({ message: "Failed to get labels" });
+    }
+  });
+
+  app.post("/api/labels", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const validatedData = insertLabelSchema.parse({ ...req.body, userId });
+      const label = await storage.createLabel(validatedData);
+      res.json(label);
+    } catch (error) {
+      console.error("Create label error:", error);
+      res.status(400).json({ message: "Invalid label data" });
+    }
+  });
+
+  app.put("/api/labels/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const updatedLabel = await storage.updateLabel(req.params.id, req.body);
+      if (!updatedLabel) {
+        return res.status(404).json({ message: "Label not found" });
+      }
+      res.json(updatedLabel);
+    } catch (error) {
+      console.error("Update label error:", error);
+      res.status(400).json({ message: "Invalid label update data" });
+    }
+  });
+
+  app.delete("/api/labels/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const success = await storage.deleteLabel(req.params.id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Delete label error:", error);
+      res.status(500).json({ message: "Failed to delete label" });
+    }
+  });
+
+  // Advanced Tasks API with Islamic Features
+  app.get("/api/tasks", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { projectId, status, islamicPriority } = req.query;
+
+      let tasks;
+      if (projectId && typeof projectId === 'string') {
+        tasks = await storage.getTasksByProject(projectId);
+      } else if (status && typeof status === 'string') {
+        tasks = await storage.getTasksByStatus(userId, status);
+      } else if (islamicPriority && typeof islamicPriority === 'string') {
+        tasks = await storage.getTasksByIslamicPriority(userId, parseInt(islamicPriority));
+      } else {
+        tasks = await storage.getTasksForUser(userId);
+      }
+
+      res.json(tasks);
+    } catch (error) {
+      console.error("Get tasks error:", error);
+      res.status(500).json({ message: "Failed to get tasks" });
+    }
+  });
+
+  app.post("/api/tasks", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const validatedData = insertTaskSchema.parse({ ...req.body, userId });
+      const task = await storage.createTask(validatedData);
+      res.json(task);
+    } catch (error) {
+      console.error("Create task error:", error);
+      res.status(400).json({ message: "Invalid task data" });
+    }
+  });
+
+  app.put("/api/tasks/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const updatedTask = await storage.updateTask(req.params.id, req.body);
+      if (!updatedTask) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      res.json(updatedTask);
+    } catch (error) {
+      console.error("Update task error:", error);
+      res.status(400).json({ message: "Invalid task update data" });
+    }
+  });
+
+  app.delete("/api/tasks/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const success = await storage.deleteTask(req.params.id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Delete task error:", error);
+      res.status(500).json({ message: "Failed to delete task" });
+    }
+  });
+
+  // Task Templates API - Islamic Routines
+  app.get("/api/templates", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const templates = await storage.getTaskTemplatesForUser(userId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Get templates error:", error);
+      res.status(500).json({ message: "Failed to get templates" });
+    }
+  });
+
+  app.get("/api/templates/public", async (req, res) => {
+    try {
+      const templates = await storage.getTaskTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Get public templates error:", error);
+      res.status(500).json({ message: "Failed to get public templates" });
+    }
+  });
+
+  app.post("/api/templates", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const validatedData = insertTaskTemplateSchema.parse({ ...req.body, createdBy: userId });
+      const template = await storage.createTaskTemplate(validatedData);
+      res.json(template);
+    } catch (error) {
+      console.error("Create template error:", error);
+      res.status(400).json({ message: "Invalid template data" });
+    }
+  });
+
+  app.put("/api/templates/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const updatedTemplate = await storage.updateTaskTemplate(req.params.id, req.body);
+      if (!updatedTemplate) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      res.json(updatedTemplate);
+    } catch (error) {
+      console.error("Update template error:", error);
+      res.status(400).json({ message: "Invalid template update data" });
+    }
+  });
+
+  app.delete("/api/templates/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const success = await storage.deleteTaskTemplate(req.params.id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Delete template error:", error);
+      res.status(500).json({ message: "Failed to delete template" });
+    }
+  });
+
+  // Collaboration API - Family & Team Sharing
+  app.get("/api/collaborations", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const collaborations = await storage.getCollaborationsForUser(userId);
+      res.json(collaborations);
+    } catch (error) {
+      console.error("Get collaborations error:", error);
+      res.status(500).json({ message: "Failed to get collaborations" });
+    }
+  });
+
+  app.post("/api/collaborations", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const validatedData = insertCollaborationSchema.parse({ ...req.body, ownerId: userId });
+      const collaboration = await storage.createCollaboration(validatedData);
+      res.json(collaboration);
+    } catch (error) {
+      console.error("Create collaboration error:", error);
+      res.status(400).json({ message: "Invalid collaboration data" });
+    }
+  });
+
+  app.put("/api/collaborations/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const updatedCollaboration = await storage.updateCollaboration(req.params.id, req.body);
+      if (!updatedCollaboration) {
+        return res.status(404).json({ message: "Collaboration not found" });
+      }
+      res.json(updatedCollaboration);
+    } catch (error) {
+      console.error("Update collaboration error:", error);
+      res.status(400).json({ message: "Invalid collaboration update data" });
+    }
+  });
+
+  // Activity Feed API
+  app.get("/api/activity", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const activities = await storage.getActivityFeedForUser(userId);
+      res.json(activities);
+    } catch (error) {
+      console.error("Get activity error:", error);
+      res.status(500).json({ message: "Failed to get activity feed" });
+    }
+  });
+
+  // Saved Filters API - Custom Views
+  app.get("/api/filters", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const filters = await storage.getSavedFiltersForUser(userId);
+      res.json(filters);
+    } catch (error) {
+      console.error("Get filters error:", error);
+      res.status(500).json({ message: "Failed to get saved filters" });
+    }
+  });
+
+  app.post("/api/filters", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const validatedData = insertSavedFilterSchema.parse({ ...req.body, userId });
+      const filter = await storage.createSavedFilter(validatedData);
+      res.json(filter);
+    } catch (error) {
+      console.error("Create filter error:", error);
+      res.status(400).json({ message: "Invalid filter data" });
+    }
+  });
+
+  app.put("/api/filters/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const updatedFilter = await storage.updateSavedFilter(req.params.id, req.body);
+      if (!updatedFilter) {
+        return res.status(404).json({ message: "Filter not found" });
+      }
+      res.json(updatedFilter);
+    } catch (error) {
+      console.error("Update filter error:", error);
+      res.status(400).json({ message: "Invalid filter update data" });
+    }
+  });
+
+  app.delete("/api/filters/:id", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const success = await storage.deleteSavedFilter(req.params.id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Delete filter error:", error);
+      res.status(500).json({ message: "Failed to delete filter" });
+    }
+  });
+
+  // Islamic Context API - Get all Islamic data
+  app.get("/api/islamic/context", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Return comprehensive Islamic data for the frontend
+      const [projects, labels, templates, tasks] = await Promise.all([
+        storage.getProjectHierarchy(userId),
+        storage.getLabelsForUser(userId),
+        storage.getTaskTemplatesForUser(userId),
+        storage.getTasksForUser(userId)
+      ]);
+
+      const islamicContext = {
+        projects: projects.filter(p => p.category === 'ibadah'),
+        dunyaProjects: projects.filter(p => p.category === 'dunya'),
+        familyProjects: projects.filter(p => p.category === 'family'),
+        workProjects: projects.filter(p => p.category === 'work'),
+        learningProjects: projects.filter(p => p.category === 'learning'),
+        islamicLabels: labels.filter(l => ['fard', 'sunnah', 'nafl', 'adhkar', 'dua'].includes(l.name)),
+        systemLabels: labels.filter(l => l.isSystemLabel),
+        userLabels: labels.filter(l => !l.isSystemLabel),
+        templates: templates,
+        fardTasks: tasks.filter(t => t.islamicPriority === 1),
+        sunnahTasks: tasks.filter(t => t.islamicPriority === 3),
+        naflTasks: tasks.filter(t => t.islamicPriority === 4),
+        totalTasks: tasks.length,
+        completedTasks: tasks.filter(t => t.status === 'completed').length,
+        pendingTasks: tasks.filter(t => t.status === 'pending').length
+      };
+
+      res.json(islamicContext);
+    } catch (error) {
+      console.error("Get Islamic context error:", error);
+      res.status(500).json({ message: "Failed to get Islamic context" });
     }
   });
 
