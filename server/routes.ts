@@ -19,10 +19,10 @@ import {
   MADHAB_SCHOOLS 
 } from "./services/aladhan";
 
-// Authentication middleware to get current user from session
+// Authentication middleware to get current user from session  
 function getCurrentUser(req: any) {
-  // For demo purposes, use session user ID or fallback to demo user
-  return req.session?.userId || "demo-user";
+  // Return actual user ID from session, or null if not logged in
+  return req.session?.userId || null;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -96,6 +96,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/user/profile", async (req, res) => {
     try {
       const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -109,6 +112,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/user/profile", async (req, res) => {
     try {
       const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const updates = req.body;
+      const user = await storage.updateUser(userId, updates);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.post("/api/user/profile", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
       const updates = req.body;
       const user = await storage.updateUser(userId, updates);
       if (!user) {
@@ -121,11 +144,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Prayer routes
-  app.get("/api/prayers/:date", async (req, res) => {
+  app.get("/api/prayers", async (req, res) => {
     try {
       const userId = getCurrentUser(req);
-      const { date } = req.params;
-      const prayers = await storage.getPrayersForUserAndDate(userId, date);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const { date } = req.query;
+      const prayers = await storage.getPrayersForUserAndDate(userId, date as string);
       res.json(prayers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch prayers" });
@@ -273,6 +299,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/reminders", async (req, res) => {
     try {
       const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
       const reminders = await storage.getRemindersForUser(userId);
       res.json(reminders);
     } catch (error) {
