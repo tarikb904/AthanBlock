@@ -23,12 +23,38 @@ export default function Auth() {
       const response = await apiRequest("POST", endpoint, userData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       toast({
         title: isLogin ? "Welcome back!" : "Account created successfully!",
-        description: "Redirecting to your dashboard...",
+        description: isLogin ? "Redirecting to your dashboard..." : "Let's set up your profile...",
       });
-      setTimeout(() => setLocation("/dashboard"), 1000);
+
+      // For new registrations, redirect to onboarding
+      if (!isLogin) {
+        setTimeout(() => setLocation("/onboarding"), 1000);
+        return;
+      }
+
+      // For login, check if user profile is complete
+      try {
+        const profileResponse = await fetch("/api/user/profile");
+        if (profileResponse.ok) {
+          const profile = await profileResponse.json();
+          // If user has location and prayer preferences, go to dashboard
+          if (profile.location && profile.prayerMethod && profile.madhab) {
+            setTimeout(() => setLocation("/dashboard"), 1000);
+          } else {
+            // User needs to complete profile setup
+            setTimeout(() => setLocation("/onboarding"), 1000);
+          }
+        } else {
+          // Profile not found, redirect to onboarding
+          setTimeout(() => setLocation("/onboarding"), 1000);
+        }
+      } catch (error) {
+        // Error fetching profile, redirect to onboarding
+        setTimeout(() => setLocation("/onboarding"), 1000);
+      }
     },
     onError: (error: any) => {
       toast({
@@ -82,7 +108,7 @@ export default function Auth() {
               <Button 
                 variant="outline" 
                 className="px-8 py-4 rounded-lg font-semibold"
-                onClick={() => setLocation("/dashboard")}
+                onClick={() => setLocation("/onboarding")}
                 data-testid="button-try-web"
               >
                 Try Web Version

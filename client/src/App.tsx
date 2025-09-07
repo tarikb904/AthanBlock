@@ -11,11 +11,13 @@ import Planner from "@/pages/planner";
 import Adhkar from "@/pages/adhkar";
 import Settings from "@/pages/settings";
 import Admin from "@/pages/admin";
+import OnboardingPage from "@/pages/onboarding";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Auth} />
+      <Route path="/onboarding" component={OnboardingPage} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/planner" component={Planner} />
       <Route path="/adhkar" component={Adhkar} />
