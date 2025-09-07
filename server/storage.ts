@@ -125,12 +125,15 @@ export class MemStorage implements IStorage {
       email: insertUser.email,
       password: insertUser.password || null,
       location: insertUser.location || null,
+      locationLat: insertUser.locationLat || null,
+      locationLon: insertUser.locationLon || null,
       timezone: insertUser.timezone || null,
       prayerMethod: insertUser.prayerMethod || null,
       madhab: insertUser.madhab || null,
       language: insertUser.language || null,
       darkMode: insertUser.darkMode || null,
       notifications: insertUser.notifications || null,
+      onboardingCompleted: insertUser.onboardingCompleted || false,
       createdAt: new Date()
     };
     this.users.set(id, user);

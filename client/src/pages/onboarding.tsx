@@ -16,7 +16,7 @@ export default function OnboardingPage() {
     madhab: string;
   }) => {
     try {
-      // Create or update user profile
+      // Create or update user profile and mark onboarding as completed
       const response = await fetch('/api/user/profile', {
         method: 'POST',
         headers: {
@@ -30,6 +30,7 @@ export default function OnboardingPage() {
           timezone: userData.timezone,
           prayerMethod: parseInt(userData.prayerMethod),
           madhab: parseInt(userData.madhab),
+          onboardingCompleted: true, // Mark onboarding as completed
         }),
       });
 

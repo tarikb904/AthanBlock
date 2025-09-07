@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { useAuth } from "@/lib/auth";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Auth from "@/pages/auth";
@@ -14,9 +15,22 @@ import Admin from "@/pages/admin";
 import OnboardingPage from "@/pages/onboarding";
 
 function Router() {
+  const { user, isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <Switch>
-      <Route path="/" component={Auth} />
+      <Route path="/">
+        {() => {
+          if (!isAuthenticated) return <Auth />;
+          if (!user?.onboardingCompleted) return <OnboardingPage />;
+          return <Dashboard />;
+        }}
+      </Route>
+      <Route path="/auth" component={Auth} />
       <Route path="/onboarding" component={OnboardingPage} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/planner" component={Planner} />
