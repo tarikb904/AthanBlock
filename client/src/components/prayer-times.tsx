@@ -9,8 +9,11 @@ import { getCurrentPrayerTimes, getNextPrayer } from "@/lib/prayer-times";
 import { format } from "date-fns";
 import { Sun, Moon, Star, MapPin, Settings } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/lib/auth";
+
 
 export function PrayerTimes() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [location, setLocation] = useState("New York, NY");
   const today = format(new Date(), "yyyy-MM-dd");
@@ -73,7 +76,7 @@ export function PrayerTimes() {
             <div className="space-y-2">
               <div className="flex items-center space-x-2 text-muted-foreground text-sm">
                 <MapPin className="w-4 h-4" />
-                <span data-testid="text-location">{location}</span>
+                <span data-testid="text-location">{user?.location || 'Location not set'}</span>
                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-2">
                   <Settings className="w-3 h-3" />
                 </Button>
@@ -84,7 +87,7 @@ export function PrayerTimes() {
                 </div>
               </div>
             </div>
-            
+
             {nextPrayer && (
               <div className="text-right">
                 <div className="text-sm text-muted-foreground mb-1">Next Prayer</div>
@@ -105,7 +108,7 @@ export function PrayerTimes() {
         {prayersArray?.map((prayer: any) => {
           const IconComponent = prayerIcons[prayer.name as keyof typeof prayerIcons] || Sun;
           const isNext = nextPrayer?.name === prayer.name;
-          
+
           return (
             <Card 
               key={prayer.id} 
@@ -125,7 +128,7 @@ export function PrayerTimes() {
                     isNext ? "text-primary" : prayer.completed ? "text-primary" : "text-primary"
                   }`} />
                 </div>
-                
+
                 <div>
                   <h3 className={`font-semibold ${
                     isNext ? "text-primary" : "text-card-foreground"
@@ -192,7 +195,7 @@ export function PrayerTimes() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label>Madhab</Label>
               <Select defaultValue="hanafi">
@@ -205,7 +208,7 @@ export function PrayerTimes() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label>Adjustment (minutes)</Label>
               <Input 

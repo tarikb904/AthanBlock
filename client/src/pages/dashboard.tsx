@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { getCurrentIslamicDate } from "@/lib/islamic-date";
 import { CalendarDays, Clock, BookOpen, Target } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const islamicDate = getCurrentIslamicDate();
   const currentTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -39,7 +41,7 @@ export default function Dashboard() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
               <div>
                 <h1 className="text-3xl font-bold text-foreground font-serif">
-                  As-salamu alaykum, Ahmed
+                  As-salamu alaykum, {user?.name || 'User'}
                 </h1>
                 <p className="text-muted-foreground">
                   {currentDate} • {islamicDate}
