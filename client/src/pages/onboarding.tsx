@@ -37,9 +37,25 @@ export default function OnboardingPage() {
         throw new Error('Failed to save profile');
       }
 
-      // Fetch initial prayer times for the user's location
+      // Generate comprehensive prayer schedule for today
       if (userData.locationLat && userData.locationLon) {
         const today = new Date().toISOString().split('T')[0];
+        
+        // Generate comprehensive daily prayers (fard, sunnah, nafl, witr)
+        await fetch(`/api/prayers/${today}/comprehensive`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            lat: parseFloat(userData.locationLat),
+            lon: parseFloat(userData.locationLon),
+            method: parseInt(userData.prayerMethod),
+            madhab: parseInt(userData.madhab),
+          }),
+        });
+
+        // Also fetch prayer times for the week
         await fetch('/api/prayers/fetch', {
           method: 'POST',
           headers: {
@@ -62,7 +78,7 @@ export default function OnboardingPage() {
       });
 
       // Navigate to dashboard
-      navigate('/');
+      navigate('/dashboard');
     } catch (error) {
       console.error('Error completing onboarding:', error);
       toast({

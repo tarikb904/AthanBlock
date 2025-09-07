@@ -16,7 +16,8 @@ import {
   Moon,
   Sun,
   Sunrise,
-  Sunset
+  Sunset,
+  Star
 } from "lucide-react";
 import { format, isAfter, isBefore, parseISO } from "date-fns";
 
@@ -26,6 +27,13 @@ interface Prayer {
   prayerTime: string;
   completed: boolean;
   date: string;
+  displayName?: string;
+  type?: 'fard' | 'sunnah' | 'nafl' | 'witr';
+  category?: string;
+  rakats?: number;
+  description?: string;
+  isOptional?: boolean;
+  priority?: number;
 }
 
 interface TimeBlock {
@@ -49,7 +57,37 @@ const prayerIcons = {
   asr: Sun,
   maghrib: Sunset,
   isha: Moon,
+  tahajjud: Moon,
+  duha: Sun,
+  witr: Star,
 } as const;
+
+const getPrayerTypeIcon = (prayer: Prayer) => {
+  // First check by prayer type
+  if (prayer.type === 'fard') return '🕌';
+  if (prayer.type === 'sunnah') return '⭐';
+  if (prayer.type === 'nafl') return '✨';
+  if (prayer.type === 'witr') return '🌙';
+  
+  // Fallback to specific prayer icons
+  const baseIcon = prayerIcons[prayer.prayerName?.toLowerCase() as keyof typeof prayerIcons];
+  return baseIcon || Clock;
+};
+
+const getPrayerTypeColor = (type?: string) => {
+  switch (type) {
+    case 'fard':
+      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-200 dark:border-red-800';
+    case 'sunnah':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800';
+    case 'nafl':
+      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800';
+    case 'witr':
+      return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-200 dark:border-purple-800';
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700';
+  }
+};
 
 const categoryColors = {
   worship: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -249,7 +287,7 @@ export function TodayTimeline({ selectedDate }: TodayTimelineProps) {
                             : 'bg-muted'
                       }`}>
                         {item.type === 'prayer' ? (
-                          React.createElement(prayerIcons[item.data.prayerName.toLowerCase() as keyof typeof prayerIcons] || Clock, {
+                          React.createElement(getPrayerTypeIcon(item.data), {
                             className: `w-6 h-6 ${item.completed ? 'text-green-600' : isNow ? 'text-primary' : 'text-muted-foreground'}`
                           })
                         ) : (
@@ -283,9 +321,31 @@ export function TodayTimeline({ selectedDate }: TodayTimelineProps) {
                           </h3>
                           
                           {item.type === 'prayer' ? (
-                            <p className="text-sm text-muted-foreground capitalize">
-                              {item.data.prayerName} Prayer
-                            </p>
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <Badge 
+                                  variant="secondary" 
+                                  className={`text-xs ${getPrayerTypeColor(item.data.type)}`}
+                                >
+                                  {item.data.type?.toUpperCase() || 'PRAYER'}
+                                </Badge>
+                                {item.data.rakats && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.data.rakats} rakats
+                                  </span>
+                                )}
+                                {item.data.isOptional && (
+                                  <span className="text-xs text-blue-600 dark:text-blue-400">
+                                    Optional
+                                  </span>
+                                )}
+                              </div>
+                              {item.data.description && (
+                                <p className="text-xs text-muted-foreground">
+                                  {item.data.description}
+                                </p>
+                              )}
+                            </div>
                           ) : (
                             <div className="space-y-1">
                               {item.data.description && (

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LocationPicker } from "@/components/location-picker";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Globe, BookOpen, Clock, ArrowRight, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
@@ -63,7 +64,6 @@ interface OnboardingProps {
 export function Onboarding({ onComplete }: OnboardingProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [locationPermission, setLocationPermission] = useState<'pending' | 'granted' | 'denied'>('pending');
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
@@ -79,76 +79,6 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
   const currentStepData = steps[currentStep];
 
-  const handleLocationDetect = async () => {
-    if (!navigator.geolocation) {
-      toast({
-        title: "Geolocation not supported",
-        description: "Please enter your location manually.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          reject,
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-        );
-      });
-
-      const { latitude, longitude } = position.coords;
-      
-      // Reverse geocode to get city name
-      try {
-        const response = await fetch(
-          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-        );
-        const data = await response.json();
-        const locationName = data.city || data.locality || `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
-        
-        setFormData(prev => ({
-          ...prev,
-          location: locationName,
-          locationLat: latitude.toString(),
-          locationLon: longitude.toString(),
-        }));
-        
-        setLocationPermission('granted');
-        toast({
-          title: "Location detected successfully",
-          description: `Location set to ${locationName}`,
-        });
-      } catch (geocodeError) {
-        // Fallback to coordinates if reverse geocoding fails
-        setFormData(prev => ({
-          ...prev,
-          location: `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`,
-          locationLat: latitude.toString(),
-          locationLon: longitude.toString(),
-        }));
-        
-        setLocationPermission('granted');
-        toast({
-          title: "Location detected",
-          description: "Location has been set using coordinates.",
-        });
-      }
-      
-    } catch (error) {
-      setLocationPermission('denied');
-      toast({
-        title: "Location access denied",
-        description: "Please enter your location manually below.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleNext = () => {
     if (currentStep === 1 && !formData.location) {
@@ -227,40 +157,17 @@ export function Onboarding({ onComplete }: OnboardingProps) {
               </div>
             </div>
 
-            <div className="space-y-4">
-              {locationPermission === 'pending' && (
-                <Button 
-                  onClick={handleLocationDetect}
-                  disabled={loading}
-                  className="w-full"
-                  data-testid="button-detect-location"
-                >
-                  {loading ? "Detecting..." : "Use My Current Location"}
-                </Button>
-              )}
-
-              {locationPermission === 'granted' && (
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <p className="text-green-800 dark:text-green-200 text-sm">
-                    ✓ Location detected: {formData.location}
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="manual-location">Or enter manually:</Label>
-                <Input
-                  id="manual-location"
-                  placeholder="City, Country"
-                  value={formData.location}
-                  onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                  data-testid="input-location"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Example: New York, USA or London, UK
-                </p>
-              </div>
-            </div>
+            <LocationPicker
+              currentLocation={formData.location}
+              onLocationSelect={(location) => {
+                setFormData(prev => ({
+                  ...prev,
+                  location: location.name,
+                  locationLat: location.lat,
+                  locationLon: location.lon,
+                }));
+              }}
+            />
           </div>
         );
 

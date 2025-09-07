@@ -18,6 +18,7 @@ import {
   PRAYER_METHODS,
   MADHAB_SCHOOLS 
 } from "./services/aladhan";
+import { generateComprehensivePrayerSchedule, type ComprehensivePrayer } from "./services/comprehensive-prayers";
 
 // Authentication middleware to get current user from session  
 function getCurrentUser(req: any) {
@@ -161,6 +162,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/prayers/:date/generate", async (req, res) => {
     try {
       const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
       const { date } = req.params;
       const { prayerTimes } = req.body; // Array of prayer time objects
       
@@ -168,6 +173,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(prayers);
     } catch (error) {
       res.status(400).json({ message: "Failed to generate prayers" });
+    }
+  });
+
+  // Generate comprehensive prayer schedule (includes sunnah, nafl, witr)
+  app.post("/api/prayers/:date/comprehensive", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const { date } = req.params;
+      const { lat, lon, method, madhab } = req.body;
+
+      if (!validateCoordinates(lat, lon) || !validatePrayerMethod(method) || !validateMadhab(madhab)) {
+        return res.status(400).json({ message: "Invalid parameters" });
+      }
+
+      // Fetch basic prayer times from Al-Adhan API
+      const basicPrayerTimes = await fetchPrayerTimes(lat, lon, method, madhab, date);
+      
+      // Generate comprehensive prayer schedule
+      const comprehensiveSchedule = generateComprehensivePrayerSchedule(date, basicPrayerTimes);
+      
+      // Store each prayer with additional metadata
+      const prayers = [];
+      for (const prayer of comprehensiveSchedule.prayers) {
+        const createdPrayer = await storage.createPrayer({
+          userId,
+          prayerName: prayer.name,
+          prayerTime: prayer.time,
+          completed: false,
+          date,
+        });
+        prayers.push({
+          ...createdPrayer,
+          displayName: prayer.displayName,
+          type: prayer.type,
+          category: prayer.category,
+          rakats: prayer.rakats,
+          description: prayer.description,
+          isOptional: prayer.isOptional,
+          priority: prayer.priority
+        });
+      }
+
+      res.json({ 
+        message: "Comprehensive prayers generated successfully", 
+        prayers,
+        prayerTimes: basicPrayerTimes,
+        totalPrayers: prayers.length,
+        fardCount: prayers.filter(p => p.type === 'fard').length,
+        sunnahCount: prayers.filter(p => p.type === 'sunnah').length,
+        naflCount: prayers.filter(p => p.type === 'nafl').length
+      });
+    } catch (error) {
+      console.error("Failed to generate comprehensive prayers:", error);
+      res.status(500).json({ message: "Failed to generate comprehensive prayers" });
     }
   });
 
