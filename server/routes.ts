@@ -30,26 +30,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const userData = insertUserSchema.parse(req.body);
-      const existingUser = await storage.getUserByEmail(userData.email);
+      console.log("Registration request body:", req.body);
+      
+      // Basic validation for required fields
+      const { email, password, name } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      const userData = {
+        email,
+        password,
+        name: name || "User", // Provide default name if not provided
+      };
+
+      console.log("Validating user data:", userData);
+      const validatedData = insertUserSchema.parse(userData);
+      
+      const existingUser = await storage.getUserByEmail(validatedData.email);
       
       if (existingUser) {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      const user = await storage.createUser(userData);
+      const user = await storage.createUser(validatedData);
       // Set user session
       (req as any).session.userId = user.id;
       res.json({ user: { id: user.id, email: user.email, name: user.name } });
     } catch (error) {
-      res.status(400).json({ message: "Invalid user data" });
+      console.error("Registration error:", error);
+      res.status(400).json({ 
+        message: "Invalid user data", 
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
     }
   });
 
   app.post("/api/auth/login", async (req, res) => {
     try {
+      console.log("Login request body:", req.body);
       const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
       const user = await storage.getUserByEmail(email);
+      console.log("Found user:", user ? "Yes" : "No");
       
       if (!user || user.password !== password) {
         return res.status(401).json({ message: "Invalid credentials" });
@@ -57,8 +84,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Set user session
       (req as any).session.userId = user.id;
+      console.log("Login successful for user:", user.id);
       res.json({ user: { id: user.id, email: user.email, name: user.name } });
     } catch (error) {
+      console.error("Login error:", error);
       res.status(400).json({ message: "Login failed" });
     }
   });
