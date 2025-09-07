@@ -33,12 +33,12 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: false, // Set to true in production with HTTPS
-    httpOnly: false, // Allow client-side access for debugging
+    httpOnly: true, // Secure cookie handling
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'none', // Required for cross-origin cookies
+    sameSite: 'lax', // Better for same-site requests
     path: '/' // Explicit path
   },
-  name: 'sessionId' // Simpler name
+  name: 'connect.sid' // Standard session cookie name
 }));
 
 app.use((req, res, next) => {

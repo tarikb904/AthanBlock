@@ -23,14 +23,19 @@ import { generateComprehensivePrayerSchedule, type ComprehensivePrayer } from ".
 // Authentication middleware to get current user from session  
 function getCurrentUser(req: any) {
   // Return actual user ID from session, or null if not logged in
-  console.log('=== SESSION DEBUG ===');
-  console.log('Session ID:', req.session?.id);
-  console.log('Session data:', req.session);
-  console.log('User ID from session:', req.session?.userId);
-  console.log('Request cookies:', req.headers?.cookie);
-  console.log('Session cookie name:', req.session?.id ? 'imaanify.sid' : 'NOT_FOUND');
-  console.log('===================');
-  return req.session?.userId || null;
+  if (!req.session) {
+    console.log('No session found');
+    return null;
+  }
+  
+  const userId = req.session.userId;
+  if (!userId) {
+    console.log('No userId in session:', req.session.id);
+    return null;
+  }
+  
+  console.log('Found userId in session:', userId);
+  return userId;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
