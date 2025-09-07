@@ -1,9 +1,10 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/theme-provider";
-import { Bell, Settings, Sun, Moon, Menu } from "lucide-react";
+import { Bell, Sun, Moon, Menu } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ProfileDropdown } from "./profile-dropdown";
 
 export function Navigation() {
   const [location] = useLocation();
@@ -72,9 +73,7 @@ export function Navigation() {
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center cursor-pointer">
-              <span className="text-primary-foreground text-sm font-medium">A</span>
-            </div>
+            <ProfileDropdown />
           </div>
 
           {/* Mobile Menu */}
