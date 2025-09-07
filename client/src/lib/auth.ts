@@ -6,12 +6,15 @@ export interface User {
   email: string;
   name?: string;
   location?: string;
+  locationLat?: string;
+  locationLon?: string;
   timezone?: string;
-  prayerMethod?: string;
-  madhab?: string;
+  prayerMethod?: number;
+  madhab?: number;
   language?: string;
   darkMode?: boolean;
   notifications?: boolean;
+  onboardingCompleted?: boolean;
 }
 
 export interface AuthState {
@@ -39,8 +42,14 @@ export function useAuth(): AuthState & {
       const response = await apiRequest("POST", "/api/auth/login", { email, password });
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      console.log('Login successful, setting user data:', data.user);
       queryClient.setQueryData(["/api/user/profile"], data.user);
+      
+      // Wait a bit for session to be properly set, then refetch profile
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+      }, 100);
     },
   });
 
@@ -49,8 +58,14 @@ export function useAuth(): AuthState & {
       const response = await apiRequest("POST", "/api/auth/register", { email, password, name });
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      console.log('Registration successful, setting user data:', data.user);
       queryClient.setQueryData(["/api/user/profile"], data.user);
+      
+      // Wait a bit for session to be properly set, then refetch profile
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+      }, 100);
     },
   });
 
