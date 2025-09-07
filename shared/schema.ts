@@ -155,17 +155,141 @@ export const planBlocks = pgTable("plan_blocks", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Tasks (subtasks inside blocks)
+// Islamic Project Categories and Hierarchy
+export const projects = pgTable("projects", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 100 }).notNull(), // 'ibadah', 'dunya', 'family', 'work', 'learning'
+  parentProjectId: uuid("parent_project_id").references(() => projects.id), // for hierarchy
+  color: varchar("color", { length: 20 }).default("#3b82f6"),
+  icon: varchar("icon", { length: 50 }).default("folder"),
+  isArchived: boolean("is_archived").default(false),
+  orderIndex: integer("order_index").default(0),
+  sharedWithFamily: boolean("shared_with_family").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Smart Labels System
+export const labels = pgTable("labels", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  name: varchar("name", { length: 100 }).notNull(), // 'urgent', 'fard', 'sunnah', 'family', 'work', etc.
+  color: varchar("color", { length: 20 }).notNull(),
+  isSystemLabel: boolean("is_system_label").default(false), // true for built-in Islamic labels
+  usageCount: integer("usage_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Advanced Tasks with Islamic Features
 export const tasks = pgTable("tasks", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  planBlockId: uuid("plan_block_id").references(() => planBlocks.id).notNull(),
+  projectId: uuid("project_id").references(() => projects.id),
   userId: uuid("user_id").references(() => users.id).notNull(),
+  assignedToUserId: uuid("assigned_to_user_id").references(() => users.id),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
+  
+  // Islamic Priority System
+  islamicPriority: integer("islamic_priority").notNull().default(4), // 1=Fard, 2=Wajib, 3=Sunnah, 4=Nafl
+  urgency: integer("urgency").default(3), // 1-5 scale
+  
+  // Status and Completion
+  status: varchar("status", { length: 50 }).default("todo"), // 'todo', 'in_progress', 'review', 'completed', 'blocked'
   completed: boolean("completed").default(false),
-  orderIndex: integer("order_index").notNull(),
-  estimatedMinutes: integer("estimated_minutes"),
   completedAt: timestamp("completed_at"),
+  
+  // Scheduling
+  dueDate: varchar("due_date", { length: 10 }), // YYYY-MM-DD
+  dueDateHijri: varchar("due_date_hijri", { length: 20 }), // Islamic date
+  scheduledTime: varchar("scheduled_time", { length: 8 }), // HH:MM:SS
+  estimatedMinutes: integer("estimated_minutes"),
+  actualMinutes: integer("actual_minutes"),
+  
+  // Recurrence
+  isRecurring: boolean("is_recurring").default(false),
+  recurrencePattern: jsonb("recurrence_pattern"), // {type: 'daily', interval: 1, days: ['mon', 'tue']}
+  nextDueDate: varchar("next_due_date", { length: 10 }),
+  
+  // Organization
+  orderIndex: integer("order_index").default(0),
+  parentTaskId: uuid("parent_task_id").references(() => tasks.id), // for subtasks
+  
+  // Collaboration
+  comments: jsonb("comments").default([]), // array of comment objects
+  attachments: jsonb("attachments").default([]), // array of attachment objects
+  
+  // Islamic Context
+  prayerRelated: boolean("prayer_related").default(false),
+  beforePrayer: varchar("before_prayer", { length: 50 }), // which prayer this should be done before
+  afterPrayer: varchar("after_prayer", { length: 50 }), // which prayer this should be done after
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Task Labels Junction Table
+export const taskLabels = pgTable("task_labels", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  taskId: uuid("task_id").references(() => tasks.id).notNull(),
+  labelId: uuid("label_id").references(() => labels.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Task Templates for Islamic Routines
+export const taskTemplates = pgTable("task_templates", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  createdBy: uuid("created_by").references(() => users.id).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 100 }).notNull(), // 'morning_routine', 'evening_routine', 'friday_routine'
+  islamicCategory: varchar("islamic_category", { length: 50 }), // 'fard', 'sunnah', 'nafl', 'adhkar'
+  tasks: jsonb("tasks").notNull(), // array of task definitions
+  isPublic: boolean("is_public").default(false),
+  isSystemTemplate: boolean("is_system_template").default(false),
+  usageCount: integer("usage_count").default(0),
+  rating: integer("rating").default(0),
+  tags: jsonb("tags").default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Family/Team Collaboration
+export const collaborations = pgTable("collaborations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  ownerId: uuid("owner_id").references(() => users.id).notNull(),
+  collaboratorId: uuid("collaborator_id").references(() => users.id).notNull(),
+  projectId: uuid("project_id").references(() => projects.id),
+  taskId: uuid("task_id").references(() => tasks.id),
+  role: varchar("role", { length: 50 }).default("viewer"), // 'owner', 'editor', 'viewer'
+  permissions: jsonb("permissions").default({}), // {canEdit: true, canAssign: true, canDelete: false}
+  invitedAt: timestamp("invited_at").defaultNow(),
+  acceptedAt: timestamp("accepted_at"),
+  status: varchar("status", { length: 20 }).default("pending"), // 'pending', 'accepted', 'declined'
+});
+
+// Activity Feed for Collaboration
+export const activityFeed = pgTable("activity_feed", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  actorId: uuid("actor_id").references(() => users.id).notNull(),
+  action: varchar("action", { length: 100 }).notNull(), // 'task_created', 'task_completed', 'task_assigned'
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // 'task', 'project', 'prayer'
+  entityId: uuid("entity_id").notNull(),
+  metadata: jsonb("metadata"), // additional context data
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Saved Filters and Views
+export const savedFilters = pgTable("saved_filters", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  filterConfig: jsonb("filter_config").notNull(), // {status: ['todo'], priority: [1,2], labels: ['urgent']}
+  viewType: varchar("view_type", { length: 50 }).default("list"), // 'list', 'board', 'calendar', 'timeline'
+  isDefault: boolean("is_default").default(false),
+  orderIndex: integer("order_index").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -285,6 +409,54 @@ export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).om
   timestamp: true,
 });
 
+// New schema inserts for Phase 1 & 2 features
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertLabelSchema = createInsertSchema(labels).omit({
+  id: true,
+  createdAt: true,
+  usageCount: true,
+});
+
+export const insertTaskTemplateSchema = createInsertSchema(taskTemplates).omit({
+  id: true,
+  createdAt: true,
+  usageCount: true,
+  rating: true,
+});
+
+export const insertCollaborationSchema = createInsertSchema(collaborations).omit({
+  id: true,
+  invitedAt: true,
+  acceptedAt: true,
+});
+
+export const insertActivityFeedSchema = createInsertSchema(activityFeed).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSavedFilterSchema = createInsertSchema(savedFilters).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTaskLabelSchema = createInsertSchema(taskLabels).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Update existing task schema
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -302,8 +474,6 @@ export type Plan = typeof plans.$inferSelect;
 export type InsertPlan = z.infer<typeof insertPlanSchema>;
 export type PlanBlock = typeof planBlocks.$inferSelect;
 export type InsertPlanBlock = z.infer<typeof insertPlanBlockSchema>;
-export type Task = typeof tasks.$inferSelect;
-export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Device = typeof devices.$inferSelect;
 export type InsertDevice = z.infer<typeof insertDeviceSchema>;
 export type NotificationQueue = typeof notificationsQueue.$inferSelect;
@@ -312,3 +482,47 @@ export type DailyTemplate = typeof dailyTemplates.$inferSelect;
 export type InsertDailyTemplate = z.infer<typeof insertDailyTemplateSchema>;
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
+
+// New types for Phase 1 & 2 features
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type Label = typeof labels.$inferSelect;
+export type InsertLabel = z.infer<typeof insertLabelSchema>;
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type TaskTemplate = typeof taskTemplates.$inferSelect;
+export type InsertTaskTemplate = z.infer<typeof insertTaskTemplateSchema>;
+export type Collaboration = typeof collaborations.$inferSelect;
+export type InsertCollaboration = z.infer<typeof insertCollaborationSchema>;
+export type ActivityFeed = typeof activityFeed.$inferSelect;
+export type InsertActivityFeed = z.infer<typeof insertActivityFeedSchema>;
+export type SavedFilter = typeof savedFilters.$inferSelect;
+export type InsertSavedFilter = z.infer<typeof insertSavedFilterSchema>;
+export type TaskLabel = typeof taskLabels.$inferSelect;
+export type InsertTaskLabel = z.infer<typeof insertTaskLabelSchema>;
+
+// Islamic Priority enum for type safety
+export enum IslamicPriority {
+  FARD = 1,
+  WAJIB = 2,
+  SUNNAH = 3,
+  NAFL = 4,
+}
+
+// Task status enum
+export enum TaskStatus {
+  TODO = "todo",
+  IN_PROGRESS = "in_progress", 
+  REVIEW = "review",
+  COMPLETED = "completed",
+  BLOCKED = "blocked",
+}
+
+// Islamic categories enum
+export enum IslamicCategory {
+  IBADAH = "ibadah",
+  DUNYA = "dunya", 
+  FAMILY = "family",
+  WORK = "work",
+  LEARNING = "learning",
+}
