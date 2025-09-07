@@ -36,25 +36,32 @@ export default function Auth() {
       }
 
       // For login, check if user profile is complete
-      try {
-        const profileResponse = await fetch("/api/user/profile");
-        if (profileResponse.ok) {
-          const profile = await profileResponse.json();
-          // If user has location and prayer preferences, go to dashboard
-          if (profile.location && profile.prayerMethod && profile.madhab) {
-            setTimeout(() => setLocation("/dashboard"), 1000);
+      setTimeout(async () => {
+        try {
+          const profileResponse = await fetch("/api/user/profile", {
+            credentials: 'include' // Include cookies/session
+          });
+          
+          if (profileResponse.ok) {
+            const profile = await profileResponse.json();
+            // If user has location and prayer preferences, go to dashboard
+            if (profile.location && profile.prayerMethod && profile.madhab) {
+              setLocation("/dashboard");
+            } else {
+              // User needs to complete profile setup
+              setLocation("/onboarding");
+            }
           } else {
-            // User needs to complete profile setup
-            setTimeout(() => setLocation("/onboarding"), 1000);
+            console.error('Profile fetch failed:', profileResponse.status);
+            // Profile not found, redirect to onboarding
+            setLocation("/onboarding");
           }
-        } else {
-          // Profile not found, redirect to onboarding
-          setTimeout(() => setLocation("/onboarding"), 1000);
+        } catch (error) {
+          console.error('Profile fetch error:', error);
+          // Error fetching profile, redirect to onboarding
+          setLocation("/onboarding");
         }
-      } catch (error) {
-        // Error fetching profile, redirect to onboarding
-        setTimeout(() => setLocation("/onboarding"), 1000);
-      }
+      }, 1500); // Give session time to be established
     },
     onError: (error: any) => {
       toast({

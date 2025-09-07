@@ -23,6 +23,8 @@ import { generateComprehensivePrayerSchedule, type ComprehensivePrayer } from ".
 // Authentication middleware to get current user from session  
 function getCurrentUser(req: any) {
   // Return actual user ID from session, or null if not logged in
+  console.log('Session data:', req.session);
+  console.log('User ID from session:', req.session?.userId);
   return req.session?.userId || null;
 }
 
@@ -57,7 +59,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser(validatedData);
       // Set user session
       (req as any).session.userId = user.id;
-      res.json({ user: { id: user.id, email: user.email, name: user.name } });
+      
+      // Save session explicitly
+      (req as any).session.save((err: any) => {
+        if (err) {
+          console.error('Session save error:', err);
+        }
+        console.log('Registration session saved for user:', user.id);
+        res.json({ user: { id: user.id, email: user.email, name: user.name } });
+      });
     } catch (error) {
       console.error("Registration error:", error);
       res.status(400).json({ 
@@ -85,8 +95,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Set user session
       (req as any).session.userId = user.id;
-      console.log("Login successful for user:", user.id);
-      res.json({ user: { id: user.id, email: user.email, name: user.name } });
+      
+      // Save session explicitly
+      (req as any).session.save((err: any) => {
+        if (err) {
+          console.error('Session save error:', err);
+        }
+        console.log("Login successful and session saved for user:", user.id);
+        res.json({ user: { id: user.id, email: user.email, name: user.name } });
+      });
     } catch (error) {
       console.error("Login error:", error);
       res.status(400).json({ message: "Login failed" });
