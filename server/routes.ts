@@ -1,8 +1,23 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertAdhkarSchema, insertTimeBlockSchema, insertReminderSchema } from "@shared/schema";
+import { 
+  insertUserSchema, 
+  insertAdhkarSchema, 
+  insertTimeBlockSchema, 
+  insertReminderSchema,
+  insertPrayerTimesSchema 
+} from "@shared/schema";
 import { z } from "zod";
+import { 
+  fetchPrayerTimes, 
+  fetchPrayerTimesRange, 
+  validateCoordinates, 
+  validatePrayerMethod, 
+  validateMadhab,
+  PRAYER_METHODS,
+  MADHAB_SCHOOLS 
+} from "./services/aladhan";
 
 // Authentication middleware to get current user from session
 function getCurrentUser(req: any) {
@@ -261,6 +276,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(reminder);
     } catch (error) {
       res.status(400).json({ message: "Failed to update reminder" });
+    }
+  });
+
+  // Al-Adhan Prayer Times API Integration Routes
+  
+  // Fetch prayer times from Al-Adhan API and store them
+  app.post("/api/prayers/fetch", async (req, res) => {
+    try {
+      const userId = getCurrentUser(req);
+      const { lat, lon, method, madhab, start_date, days = 7 } = req.body;
+      
+      // Validate input
+      if (!lat || !lon || method === undefined || madhab === undefined || !start_date) {
+        return res.status(400).json({ 
+          message: "Missing required fields: lat, lon, method, madhab, start_date" 
+        });
+      }
+      
+      if (!validateCoordinates(lat, lon)) {
+        return res.status(400).json({ 
+          message: "Invalid coordinates. Latitude must be -90 to 90, longitude must be -180 to 180" 
+        });
+      }
+      
+      if (!validatePrayerMethod(method)) {
+        return res.status(400).json({ 
+          message: "Invalid prayer method. See API documentation for valid methods" 
+        });
+      }
+      
+      if (!validateMadhab(madhab)) {
+        return res.status(400).json({ 
+          message: "Invalid madhab. Use 0 for Shafi/Maliki/Hanbali or 1 for Hanafi" 
+        });
+      }
+      
+      // Fetch prayer times from Al-Adhan API
+      const prayerTimesData = await fetchPrayerTimesRange(lat, lon, method, madhab, start_date, days);
+      
+      // Store in database (with caching logic)
+      const storedPrayerTimes = [];
+      for (const prayerTime of prayerTimesData) {
+        // Check if already exists for this user/date
+        const existing = await storage.getPrayerTimesForUserAndDate?.(userId, prayerTime.date);
+        
+        if (existing) {
+          // Update existing record
+          const updated = await storage.updatePrayerTimes?.(existing.id, {
+            fajr: prayerTime.fajr,
+            sunrise: prayerTime.sunrise,
+            dhuhr: prayerTime.dhuhr,
+            asr: prayerTime.asr,
+            maghrib: prayerTime.maghrib,
+            isha: prayerTime.isha,
+            prayerMethod: prayerTime.method,
+            madhab: prayerTime.madhab,
+            locationLat: prayerTime.locationLat,
+            locationLon: prayerTime.locationLon,
+          });
+          storedPrayerTimes.push(updated);
+        } else {
+          // Create new record
+          const created = await storage.createPrayerTimes?.({
+            userId,
+            date: prayerTime.date,
+            fajr: prayerTime.fajr,
+            sunrise: prayerTime.sunrise,
+            dhuhr: prayerTime.dhuhr,
+            asr: prayerTime.asr,
+            maghrib: prayerTime.maghrib,
+            isha: prayerTime.isha,
+            source: prayerTime.source,
+            prayerMethod: prayerTime.method,
+            madhab: prayerTime.madhab,
+            locationLat: prayerTime.locationLat,
+            locationLon: prayerTime.locationLon,
+          });
+          storedPrayerTimes.push(created);
+        }
+      }
+      
+      res.json({
+        message: `Successfully fetched and stored prayer times for ${days} days`,
+        count: storedPrayerTimes.length,
+        prayerTimes: storedPrayerTimes
+      });
+      
+    } catch (error) {
+      console.error('Prayer times fetch error:', error);
+      res.status(500).json({ 
+        message: "Failed to fetch prayer times",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Get cached prayer times for user and date range
+  app.get("/api/prayer-times/:userId/:startDate/:endDate?", async (req, res) => {
+    try {
+      const { userId, startDate, endDate } = req.params;
+      const currentUserId = getCurrentUser(req);
+      
+      // Only allow users to access their own prayer times
+      if (userId !== currentUserId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // For now, get single date (endDate support can be added later)
+      const prayerTimes = await storage.getPrayerTimesForUserAndDate?.(userId, startDate);
+      
+      if (!prayerTimes) {
+        return res.status(404).json({ 
+          message: "Prayer times not found for this date. Use /api/prayers/fetch to get them from Al-Adhan API" 
+        });
+      }
+      
+      res.json(prayerTimes);
+      
+    } catch (error) {
+      console.error('Get prayer times error:', error);
+      res.status(500).json({ message: "Failed to get prayer times" });
+    }
+  });
+  
+  // Get prayer calculation methods and madhabs
+  app.get("/api/prayer-settings/options", async (req, res) => {
+    try {
+      res.json({
+        methods: Object.entries(PRAYER_METHODS).map(([name, id]) => ({
+          id,
+          name: name.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase()),
+          value: id
+        })),
+        madhabs: Object.entries(MADHAB_SCHOOLS).map(([name, id]) => ({
+          id,
+          name: name.toLowerCase().replace(/^\w/, c => c.toUpperCase()),
+          value: id
+        }))
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get prayer settings options" });
     }
   });
 

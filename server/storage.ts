@@ -3,6 +3,8 @@ import {
   type InsertUser, 
   type Prayer, 
   type InsertPrayer,
+  type PrayerTimes,
+  type InsertPrayerTimes,
   type Adhkar,
   type InsertAdhkar,
   type TimeBlock,
@@ -11,6 +13,7 @@ import {
   type InsertReminder,
   users,
   prayers,
+  prayerTimes,
   adhkar,
   timeBlocks,
   reminders
@@ -24,6 +27,7 @@ import { eq, and } from "drizzle-orm";
 export class MemStorage implements IStorage {
   private users: Map<string, User> = new Map();
   private prayers: Map<string, Prayer> = new Map();
+  private prayerTimesList: Map<string, PrayerTimes> = new Map();
   private adhkarList: Map<string, Adhkar> = new Map();
   private timeBlocksList: Map<string, TimeBlock> = new Map();
   private remindersList: Map<string, Reminder> = new Map();
@@ -180,6 +184,44 @@ export class MemStorage implements IStorage {
     return createdPrayers;
   }
 
+  // Prayer Times operations (Al-Adhan API integration)
+  async getPrayerTimesForUserAndDate(userId: string, date: string): Promise<PrayerTimes | undefined> {
+    return Array.from(this.prayerTimesList.values()).find(
+      pt => pt.userId === userId && pt.date === date
+    );
+  }
+
+  async createPrayerTimes(insertPrayerTimes: InsertPrayerTimes): Promise<PrayerTimes> {
+    const id = randomUUID();
+    const prayerTimes: PrayerTimes = {
+      id,
+      userId: insertPrayerTimes.userId,
+      date: insertPrayerTimes.date,
+      fajr: insertPrayerTimes.fajr,
+      sunrise: insertPrayerTimes.sunrise,
+      dhuhr: insertPrayerTimes.dhuhr,
+      asr: insertPrayerTimes.asr,
+      maghrib: insertPrayerTimes.maghrib,
+      isha: insertPrayerTimes.isha,
+      source: insertPrayerTimes.source || 'aladhan',
+      prayerMethod: insertPrayerTimes.prayerMethod,
+      madhab: insertPrayerTimes.madhab,
+      locationLat: insertPrayerTimes.locationLat,
+      locationLon: insertPrayerTimes.locationLon,
+      createdAt: new Date()
+    };
+    this.prayerTimesList.set(id, prayerTimes);
+    return prayerTimes;
+  }
+
+  async updatePrayerTimes(id: string, updates: Partial<InsertPrayerTimes>): Promise<PrayerTimes | undefined> {
+    const prayerTimes = this.prayerTimesList.get(id);
+    if (!prayerTimes) return undefined;
+    const updatedPrayerTimes = { ...prayerTimes, ...updates };
+    this.prayerTimesList.set(id, updatedPrayerTimes);
+    return updatedPrayerTimes;
+  }
+
   // Adhkar operations
   async getAllAdhkar(): Promise<Adhkar[]> {
     return Array.from(this.adhkarList.values()).filter(adhkar => adhkar.published);
@@ -295,6 +337,11 @@ export interface IStorage {
   createPrayer(prayer: InsertPrayer): Promise<Prayer>;
   updatePrayer(id: string, updates: Partial<InsertPrayer>): Promise<Prayer | undefined>;
   createDailyPrayers(userId: string, date: string, prayers: Omit<InsertPrayer, 'userId' | 'date'>[]): Promise<Prayer[]>;
+
+  // Prayer Times operations (Al-Adhan API integration)
+  getPrayerTimesForUserAndDate(userId: string, date: string): Promise<PrayerTimes | undefined>;
+  createPrayerTimes(prayerTimes: InsertPrayerTimes): Promise<PrayerTimes>;
+  updatePrayerTimes(id: string, updates: Partial<InsertPrayerTimes>): Promise<PrayerTimes | undefined>;
 
   // Adhkar operations
   getAllAdhkar(): Promise<Adhkar[]>;
@@ -639,6 +686,42 @@ export class DrizzleStorage implements IStorage {
   async deleteReminder(id: string): Promise<boolean> {
     const result = await db.delete(reminders).where(eq(reminders.id, id));
     return result.rowCount > 0;
+  }
+
+  // Prayer Times operations (Al-Adhan API integration)
+  async getPrayerTimesForUserAndDate(userId: string, date: string): Promise<PrayerTimes | undefined> {
+    if (!db) return this.memoryFallback.getPrayerTimesForUserAndDate(userId, date);
+    try {
+      const result = await db.select().from(prayerTimes)
+        .where(and(eq(prayerTimes.userId, userId), eq(prayerTimes.date, date)))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.getPrayerTimesForUserAndDate(userId, date);
+    }
+  }
+
+  async createPrayerTimes(insertPrayerTimes: InsertPrayerTimes): Promise<PrayerTimes> {
+    if (!db) return this.memoryFallback.createPrayerTimes(insertPrayerTimes);
+    try {
+      const result = await db.insert(prayerTimes).values(insertPrayerTimes).returning();
+      return result[0];
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.createPrayerTimes(insertPrayerTimes);
+    }
+  }
+
+  async updatePrayerTimes(id: string, updates: Partial<InsertPrayerTimes>): Promise<PrayerTimes | undefined> {
+    if (!db) return this.memoryFallback.updatePrayerTimes(id, updates);
+    try {
+      const result = await db.update(prayerTimes).set(updates).where(eq(prayerTimes.id, id)).returning();
+      return result[0];
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.updatePrayerTimes(id, updates);
+    }
   }
 }
 
