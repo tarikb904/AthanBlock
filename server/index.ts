@@ -4,6 +4,20 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// CORS configuration to allow credentials (cookies)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -11,13 +25,14 @@ app.use(express.urlencoded({ extended: false }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-key-change-in-production',
   resave: false,
-  saveUninitialized: false, // Changed to false - only save sessions when needed
+  saveUninitialized: false,
   cookie: {
     secure: false, // Set to true in production with HTTPS
-    httpOnly: true, // Prevent XSS attacks
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    httpOnly: false, // Allow client-side access for debugging
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax' // Allow cross-site requests with credentials
   },
-  name: 'imaanify.sid' // Custom session name
+  name: 'imaanify.sid'
 }));
 
 app.use((req, res, next) => {
