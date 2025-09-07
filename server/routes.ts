@@ -64,6 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (req as any).session.save((err: any) => {
         if (err) {
           console.error('Session save error:', err);
+          return res.status(500).json({ message: "Session save failed" });
         }
         console.log('Registration session saved for user:', user.id);
         res.json({ user: { id: user.id, email: user.email, name: user.name } });
@@ -100,6 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (req as any).session.save((err: any) => {
         if (err) {
           console.error('Session save error:', err);
+          return res.status(500).json({ message: "Session save failed" });
         }
         console.log("Login successful and session saved for user:", user.id);
         res.json({ user: { id: user.id, email: user.email, name: user.name } });
@@ -186,9 +188,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { date } = req.params;
       const { prayerTimes } = req.body; // Array of prayer time objects
       
-      const prayers = await storage.createDailyPrayers(userId, date, prayerTimes);
+      // Ensure prayer times have the correct field names
+      const normalizedPrayerTimes = prayerTimes.map((prayer: any) => ({
+        name: prayer.name || prayer.prayerName,
+        time: prayer.time || prayer.prayerTime,
+        completed: prayer.completed || false
+      }));
+      
+      const prayers = await storage.createDailyPrayers(userId, date, normalizedPrayerTimes);
       res.json(prayers);
     } catch (error) {
+      console.error("Prayer generation error:", error);
       res.status(400).json({ message: "Failed to generate prayers" });
     }
   });
@@ -219,8 +229,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const prayer of comprehensiveSchedule.prayers) {
         const createdPrayer = await storage.createPrayer({
           userId,
-          prayerName: prayer.name,
-          prayerTime: prayer.time,
+          name: prayer.name,
+          time: prayer.time,
           completed: false,
           date,
         });
