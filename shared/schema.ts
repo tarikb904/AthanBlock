@@ -45,7 +45,7 @@ export const prayers = pgTable("prayers", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").references(() => users.id).notNull(),
   name: varchar("name", { length: 50 }).notNull(),
-  time: timestamp("time").notNull(),
+  time: varchar("time", { length: 8 }).notNull(), // Changed to varchar for HH:MM format
   completed: boolean("completed").default(false),
   date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD format
   createdAt: timestamp("created_at").defaultNow(),

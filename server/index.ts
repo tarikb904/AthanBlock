@@ -11,11 +11,13 @@ app.use(express.urlencoded({ extended: false }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-key-change-in-production',
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false, // Changed to false - only save sessions when needed
   cookie: {
     secure: false, // Set to true in production with HTTPS
+    httpOnly: true, // Prevent XSS attacks
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
+  },
+  name: 'imaanify.sid' // Custom session name
 }));
 
 app.use((req, res, next) => {
