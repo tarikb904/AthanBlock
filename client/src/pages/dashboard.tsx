@@ -1,5 +1,5 @@
 import { Navigation } from "@/components/navigation";
-import { PrayerTimes } from "@/components/prayer-times";
+import { PrayerTimesDashboard } from "@/components/prayer-times-dashboard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -56,7 +56,7 @@ export default function Dashboard() {
           </div>
 
           {/* Prayer Times Section */}
-          <PrayerTimes />
+          <PrayerTimesDashboard />
 
           {/* Quick Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
