@@ -26,7 +26,7 @@ export function PrayerTimesDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  const { data: prayerTimesData, isLoading } = useQuery<PrayerTimesData[]>({
+  const { data: prayerTimesData, isLoading } = useQuery<PrayerTimesData>({
     queryKey: ["/api/prayer-times", today],
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
@@ -42,8 +42,8 @@ export function PrayerTimesDashboard() {
     );
   }
 
-  // Get the first (today's) prayer times or create default times
-  const todayPrayerTimes = prayerTimesData?.[0] || {
+  // Use fetched prayer times or create default times
+  const todayPrayerTimes = prayerTimesData || {
     fajr: "05:30",
     sunrise: "06:45", 
     dhuhr: "12:15",

@@ -581,6 +581,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to get prayer times" });
     }
   });
+
+  // Get prayer times for current user by date (simplified endpoint)
+  app.get("/api/prayer-times/:date", async (req, res) => {
+    try {
+      const { date } = req.params;
+      const userId = getCurrentUser(req);
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const prayerTimes = await storage.getPrayerTimesForUserAndDate?.(userId, date);
+      
+      if (!prayerTimes) {
+        return res.status(404).json({ 
+          message: "Prayer times not found for this date. Use /api/prayers/fetch to get them from Al-Adhan API" 
+        });
+      }
+      
+      res.json(prayerTimes);
+      
+    } catch (error) {
+      console.error('Get prayer times by date error:', error);
+      res.status(500).json({ message: "Failed to get prayer times" });
+    }
+  });
   
   // Get prayer calculation methods and madhabs
   app.get("/api/prayer-settings/options", async (req, res) => {
