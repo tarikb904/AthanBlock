@@ -7,15 +7,23 @@ const app = express();
 
 // CORS configuration to allow credentials (cookies)
 app.use((req, res, next) => {
-  // For development, be very specific about the origin
   const origin = req.headers.origin;
-  if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('.replit.dev'))) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    // Fallback for direct access
+  const host = req.headers.host;
+  
+  // For Replit preview environment, allow same-origin requests
+  if (!origin && host) {
+    // Direct access from same origin (Replit preview)
     res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Credentials', 'false');
+  } else if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('.replit.dev'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  } else {
+    // Fallback
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Credentials', 'false');
   }
-  res.header('Access-Control-Allow-Credentials', 'true');
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie, Set-Cookie');
   res.header('Access-Control-Expose-Headers', 'Set-Cookie');
@@ -38,8 +46,9 @@ app.use(session({
     secure: false, // Set to true in production with HTTPS
     httpOnly: false, // Allow client-side access for Replit environment
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'none', // Required for cross-origin in Replit
-    path: '/' // Explicit path
+    sameSite: process.env.NODE_ENV === 'development' ? 'lax' : 'none', // Use lax for Replit preview
+    path: '/', // Explicit path
+    domain: undefined // Let browser set domain automatically
   },
   name: 'sessionId' // Use a simpler name for debugging
 }));
