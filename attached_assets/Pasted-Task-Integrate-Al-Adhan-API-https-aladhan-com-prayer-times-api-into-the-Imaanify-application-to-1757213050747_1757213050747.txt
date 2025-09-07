@@ -1,0 +1,120 @@
+Task: Integrate Al Adhan API (https://aladhan.com/prayer-times-api) into the Imaanify application to handle prayer time calculations instead of relying on a custom PrayTimes implementation.
+
+System context:
+- Frontend: React + TypeScript + Vite
+- Backend: Express.js + TypeScript
+- Database: PostgreSQL with Drizzle ORM
+- State Management: TanStack Query (React Query)
+- Authentication: Session-based, user_id available in req.session
+- Current schema: users, prayers, time_blocks, reminders, adhkar, templates
+
+---
+
+### 1. Backend Integration
+
+1. Add a new service file: `services/aladhan.ts`
+   - Export a function `fetchPrayerTimes(lat: number, lon: number, method: number, madhab: number, date: string): Promise<PrayerTimes>`
+   - Use `axios` or `node-fetch` to call:
+     GET `http://api.aladhan.com/v1/timings/:date?latitude={lat}&longitude={lon}&method={method}&school={madhab}`
+   - Parse JSON response → extract Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha.
+   - Return normalized object:
+     ```
+     {
+       fajr: "HH:MM",
+       sunrise: "HH:MM",
+       dhuhr: "HH:MM",
+       asr: "HH:MM",
+       maghrib: "HH:MM",
+       isha: "HH:MM",
+       date: "YYYY-MM-DD"
+     }
+     ```
+
+2. Create Express route: `POST /api/prayers/fetch`
+   - Input: `{ user_id, lat, lon, method, madhab, start_date, days }`
+   - For each day in range, call `fetchPrayerTimes` with Al Adhan API.
+   - Store results in `prayers` table:
+     - Columns: id, user_id, date, fajr, dhuhr, asr, maghrib, isha, source ("aladhan"), created_at
+   - If record exists for that date → update instead of insert.
+   - Return JSON array of prayer times for the requested days.
+
+3. Create caching layer:
+   - Before calling API, check if `prayers` table already has data for that user/date.
+   - Only call API if missing or expired (>7 days old).
+   - Store API response metadata (method, madhab, lat, lon) for auditing.
+
+---
+
+### 2. User Settings Integration
+
+- Extend `users` table (already present):
+  - Columns: prayer_method (int), madhab (int), location_lat, location_lon
+- On Settings save, update these fields.
+- On login or dashboard load, backend uses stored preferences to fetch prayer times.
+
+---
+
+### 3. Frontend Integration
+
+1. Prayer Calculation Settings Component:
+   - Dropdowns for Method and Madhab (map to Al Adhan API values).
+     - Example methods: ISNA=2, MWL=3, Umm al-Qura=4, etc.
+     - Madhab: Shafi=0, Hanafi=1
+   - On change → call `/api/prayers/fetch` with updated preferences.
+
+2. Dashboard Page:
+   - Display next prayer (based on fetched prayer times).
+   - Show streak counters and completion % (using local DB).
+
+3. Daily Planner:
+   - Use prayer times from DB to generate default prayer blocks (Fajr, Dhuhr, Asr, Maghrib, Isha).
+   - Allow manual override: user edits a block → update that block’s time in `time_blocks` table (doesn’t overwrite `prayers` table).
+
+---
+
+### 4. Reminders & Notifications
+
+- Reminder worker checks `prayers` table for today’s times.
+- Example: If Fajr = 05:22, enqueue notification for 05:12 (10 min before).
+- Store reminders in `reminders` table with `{ user_id, type: "prayer", target_id: prayer_id, notify_at }`.
+
+---
+
+### 5. Error Handling
+
+- If Al Adhan API fails (network, quota, etc.):
+  - Return cached data from `prayers` table if available.
+  - Otherwise, return error with fallback message: "Prayer times unavailable. Please try again later."
+
+---
+
+### 6. Testing
+
+1. Unit test `fetchPrayerTimes`:
+   - Input: lat=40.7128, lon=-74.0060, method=2 (ISNA), madhab=1 (Hanafi), date="2025-09-07"
+   - Expect correct prayer times in normalized format.
+
+2. Integration test `POST /api/prayers/fetch`:
+   - Call with 7 days range.
+   - Ensure DB has 7 rows for user.
+
+3. Frontend E2E test:
+   - Change method in Settings → triggers API call → dashboard shows updated times.
+
+---
+
+### 7. Developer Notes
+
+- Store `method` and `madhab` as integers (match Al Adhan API docs).
+- Add index on `prayers (user_id, date)` for fast lookup.
+- Set `.env` for ALADHAN_BASE_URL = `http://api.aladhan.com/v1`.
+- Make sure times are stored in **UTC** and converted to user’s timezone in frontend using `date-fns-tz`.
+
+---
+
+Deliverables:
+- `services/aladhan.ts` service wrapper
+- `/api/prayers/fetch` route
+- Drizzle migration for `users` (lat, lon, method, madhab)
+- Frontend integration in Settings, Dashboard, Daily Planner
+- Unit + integration tests
