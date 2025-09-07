@@ -1158,6 +1158,137 @@ export class DrizzleStorage implements IStorage {
       return this.memoryFallback.updatePrayerTimes(id, updates);
     }
   }
+
+  // ====================================================
+  // Phase 1 & 2: Advanced Islamic Task Management Methods
+  // ====================================================
+  
+  // Project operations - delegate to memory fallback for now
+  async getProjectsForUser(userId: string): Promise<Project[]> {
+    return this.memoryFallback.getProjectsForUser(userId);
+  }
+
+  async getProjectHierarchy(userId: string): Promise<Project[]> {
+    return this.memoryFallback.getProjectHierarchy(userId);
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    return this.memoryFallback.createProject(insertProject);
+  }
+
+  async updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined> {
+    return this.memoryFallback.updateProject(id, updates);
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    return this.memoryFallback.deleteProject(id);
+  }
+
+  // Label operations
+  async getLabelsForUser(userId: string): Promise<Label[]> {
+    return this.memoryFallback.getLabelsForUser(userId);
+  }
+
+  async createLabel(insertLabel: InsertLabel): Promise<Label> {
+    return this.memoryFallback.createLabel(insertLabel);
+  }
+
+  async updateLabel(id: string, updates: Partial<InsertLabel>): Promise<Label | undefined> {
+    return this.memoryFallback.updateLabel(id, updates);
+  }
+
+  async deleteLabel(id: string): Promise<boolean> {
+    return this.memoryFallback.deleteLabel(id);
+  }
+
+  // Advanced Task operations
+  async getTasksForUser(userId: string): Promise<Task[]> {
+    return this.memoryFallback.getTasksForUser(userId);
+  }
+
+  async getTasksByProject(projectId: string): Promise<Task[]> {
+    return this.memoryFallback.getTasksByProject(projectId);
+  }
+
+  async getTasksByStatus(userId: string, status: string): Promise<Task[]> {
+    return this.memoryFallback.getTasksByStatus(userId, status);
+  }
+
+  async getTasksByIslamicPriority(userId: string, priority: number): Promise<Task[]> {
+    return this.memoryFallback.getTasksByIslamicPriority(userId, priority);
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    return this.memoryFallback.createTask(insertTask);
+  }
+
+  async updateTask(id: string, updates: Partial<InsertTask>): Promise<Task | undefined> {
+    return this.memoryFallback.updateTask(id, updates);
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    return this.memoryFallback.deleteTask(id);
+  }
+
+  // Task Template operations
+  async getTaskTemplates(): Promise<TaskTemplate[]> {
+    return this.memoryFallback.getTaskTemplates();
+  }
+
+  async getTaskTemplatesForUser(userId: string): Promise<TaskTemplate[]> {
+    return this.memoryFallback.getTaskTemplatesForUser(userId);
+  }
+
+  async createTaskTemplate(insertTemplate: InsertTaskTemplate): Promise<TaskTemplate> {
+    return this.memoryFallback.createTaskTemplate(insertTemplate);
+  }
+
+  async updateTaskTemplate(id: string, updates: Partial<InsertTaskTemplate>): Promise<TaskTemplate | undefined> {
+    return this.memoryFallback.updateTaskTemplate(id, updates);
+  }
+
+  async deleteTaskTemplate(id: string): Promise<boolean> {
+    return this.memoryFallback.deleteTaskTemplate(id);
+  }
+
+  // Collaboration operations
+  async getCollaborationsForUser(userId: string): Promise<Collaboration[]> {
+    return this.memoryFallback.getCollaborationsForUser(userId);
+  }
+
+  async createCollaboration(insertCollaboration: InsertCollaboration): Promise<Collaboration> {
+    return this.memoryFallback.createCollaboration(insertCollaboration);
+  }
+
+  async updateCollaboration(id: string, updates: Partial<InsertCollaboration>): Promise<Collaboration | undefined> {
+    return this.memoryFallback.updateCollaboration(id, updates);
+  }
+
+  // Activity Feed operations
+  async getActivityFeedForUser(userId: string): Promise<ActivityFeed[]> {
+    return this.memoryFallback.getActivityFeedForUser(userId);
+  }
+
+  async createActivityFeed(insertActivity: InsertActivityFeed): Promise<ActivityFeed> {
+    return this.memoryFallback.createActivityFeed(insertActivity);
+  }
+
+  // Saved Filters operations
+  async getSavedFiltersForUser(userId: string): Promise<SavedFilter[]> {
+    return this.memoryFallback.getSavedFiltersForUser(userId);
+  }
+
+  async createSavedFilter(insertFilter: InsertSavedFilter): Promise<SavedFilter> {
+    return this.memoryFallback.createSavedFilter(insertFilter);
+  }
+
+  async updateSavedFilter(id: string, updates: Partial<InsertSavedFilter>): Promise<SavedFilter | undefined> {
+    return this.memoryFallback.updateSavedFilter(id, updates);
+  }
+
+  async deleteSavedFilter(id: string): Promise<boolean> {
+    return this.memoryFallback.deleteSavedFilter(id);
+  }
 }
 
 export const storage = new DrizzleStorage();
