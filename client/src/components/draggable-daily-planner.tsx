@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Clock, Settings, Check, Edit3, Calendar } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Plus, Clock, Settings, Check, Edit3, Calendar, X, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
 interface TimeBlock {
@@ -43,7 +45,7 @@ const taskTypeColors = {
 const defaultIslamicTasks: TimeBlock[] = [
   {
     id: '1',
-    title: 'Tahajjud (Night Prayer)',
+    title: 'Tahajjud Prayer',
     description: 'Wake for late-night nafl (voluntary) worship',
     startTime: '02:30',
     endTime: '03:00',
@@ -65,7 +67,7 @@ const defaultIslamicTasks: TimeBlock[] = [
   },
   {
     id: '3',
-    title: 'Fajr (Obligation)',
+    title: 'Fajr Prayer',
     description: '2 rak\'ahs fard. Must be offered before sunrise',
     startTime: '04:40',
     endTime: '05:00',
@@ -76,7 +78,7 @@ const defaultIslamicTasks: TimeBlock[] = [
   },
   {
     id: '4',
-    title: 'Morning Adhkar (after Fajr)',
+    title: 'Morning Adhkar',
     description: 'Engage in the prescribed post-Fajr remembrances',
     startTime: '05:00',
     endTime: '05:20',
@@ -101,7 +103,7 @@ const defaultIslamicTasks: TimeBlock[] = [
   },
   {
     id: '14',
-    title: 'Duha (Forenoon) Prayer',
+    title: 'Duha Prayer',
     description: 'Optional nafl in mid-morning. 2 or 4 rak\'ahs after sunrise',
     startTime: '06:30',
     endTime: '07:00',
@@ -123,7 +125,7 @@ const defaultIslamicTasks: TimeBlock[] = [
   },
   {
     id: '7',
-    title: 'Dhuhr (Obligatory)',
+    title: 'Dhuhr Prayer',
     description: '4 rak\'ahs fard',
     startTime: '12:28',
     endTime: '12:40',
@@ -134,7 +136,7 @@ const defaultIslamicTasks: TimeBlock[] = [
   },
   {
     id: '8',
-    title: 'Asr (Obligatory)',
+    title: 'Asr Prayer',
     description: '4 rak\'ahs fard',
     startTime: '15:54',
     endTime: '16:15',
@@ -145,7 +147,7 @@ const defaultIslamicTasks: TimeBlock[] = [
   },
   {
     id: '9',
-    title: 'Maghrib (Obligatory)',
+    title: 'Maghrib Prayer',
     description: '3 rak\'ahs fard at sunset',
     startTime: '18:48',
     endTime: '19:00',
@@ -156,7 +158,7 @@ const defaultIslamicTasks: TimeBlock[] = [
   },
   {
     id: '10',
-    title: 'Evening Adhkar (post-Maghrib)',
+    title: 'Evening Adhkar',
     description: 'Recite prescribed evening remembrances',
     startTime: '19:10',
     endTime: '19:20',
@@ -170,7 +172,7 @@ const defaultIslamicTasks: TimeBlock[] = [
   },
   {
     id: '11',
-    title: 'Isha (Obligatory)',
+    title: 'Isha Prayer',
     description: '4 rak\'ahs fard',
     startTime: '20:18',
     endTime: '20:30',
@@ -192,7 +194,7 @@ const defaultIslamicTasks: TimeBlock[] = [
   },
   {
     id: '13',
-    title: 'Bedtime Duas & Adhkar',
+    title: 'Bedtime Duas',
     description: 'Before sleeping, perform recommended evening remembrances',
     startTime: '22:00',
     endTime: '22:20',
@@ -209,6 +211,7 @@ const defaultIslamicTasks: TimeBlock[] = [
 export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerProps) {
   const [tasks, setTasks] = useState<TimeBlock[]>(defaultIslamicTasks);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
+  const [selectedTask, setSelectedTask] = useState<TimeBlock | null>(null);
   const [editingTask, setEditingTask] = useState<TimeBlock | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
   const plannerRef = useRef<HTMLDivElement>(null);
@@ -305,9 +308,12 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       <div
         draggable
         onDragStart={() => handleDragStart(task.id)}
-        className={`absolute left-20 right-4 rounded-lg border-2 cursor-move hover:shadow-lg transition-all duration-200 ${
-          taskTypeColors[task.taskType]
-        } ${task.completed ? 'opacity-70' : ''}`}
+        onClick={() => setSelectedTask(task)}
+        className={`absolute left-20 right-4 rounded-lg border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+          selectedTask?.id === task.id 
+            ? `${taskTypeColors[task.taskType]} ring-2 ring-white/50` 
+            : `${taskTypeColors[task.taskType]} ${task.completed ? 'opacity-70' : ''}`
+        }`}
         style={{
           top: `${startPos}%`,
           height: `${height}px`,
@@ -315,75 +321,160 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
         }}
         data-testid={`task-card-${task.id}`}
       >
-        <div className="p-3 h-full flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded">
-                  {task.startTime} - {task.endTime}
-                </span>
-                <button
-                  onClick={() => setEditingTask(task)}
-                  className="text-white/80 hover:text-white transition-colors"
-                  data-testid={`button-edit-${task.id}`}
-                >
-                  <Edit3 className="w-3 h-3" />
-                </button>
-              </div>
-              <h4 className="font-semibold text-sm text-white truncate">
-                {task.title}
-              </h4>
-              {task.description && (
-                <p className="text-xs text-white/90 mt-1 line-clamp-2">
-                  {task.description}
-                </p>
-              )}
-              {task.arabicText && (
-                <p className="text-xs text-white/90 mt-1 font-arabic text-right">
-                  {task.arabicText}
-                </p>
-              )}
-              {task.transliteration && (
-                <p className="text-xs text-white/80 mt-1 italic">
-                  {task.transliteration}
-                </p>
-              )}
-              {task.translation && (
-                <p className="text-xs text-white/70 mt-1">
-                  "{task.translation}"
-                </p>
-              )}
+        <div className="p-3 h-full flex items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded">
+                {task.startTime} - {task.endTime}
+              </span>
             </div>
-            <div className="flex items-center gap-1 ml-2">
-              <Badge 
-                variant="secondary" 
-                className="text-xs bg-white/20 text-white border-white/30"
+            <h4 className="font-semibold text-sm text-white truncate">
+              {task.title}
+            </h4>
+          </div>
+          <div className="flex items-center gap-2 ml-2">
+            <Badge 
+              variant="secondary" 
+              className="text-xs bg-white/20 text-white border-white/30"
+            >
+              {task.taskType}
+            </Badge>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setTasks(prev => prev.map(t => 
+                  t.id === task.id ? { ...t, completed: !t.completed } : t
+                ));
+              }}
+              className={`w-5 h-5 rounded border-2 border-white/50 flex items-center justify-center ${
+                task.completed ? 'bg-white/30' : 'hover:bg-white/20'
+              } transition-colors`}
+              data-testid={`checkbox-${task.id}`}
+            >
+              {task.completed && <Check className="w-3 h-3 text-white" />}
+            </button>
+            <ChevronRight className="w-4 h-4 text-white/60" />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const TaskDetailsPanel = ({ task }: { task: TimeBlock }) => {
+    return (
+      <div className="w-80 bg-card border-l h-screen overflow-y-auto">
+        <div className="p-6 border-b">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">{task.title}</h3>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingTask(task)}
+                data-testid={`button-edit-${task.id}`}
               >
-                {task.taskType}
-              </Badge>
-              <button
-                onClick={() => {
-                  setTasks(prev => prev.map(t => 
-                    t.id === task.id ? { ...t, completed: !t.completed } : t
-                  ));
-                }}
-                className={`w-5 h-5 rounded border-2 border-white/50 flex items-center justify-center ${
-                  task.completed ? 'bg-white/30' : 'hover:bg-white/20'
-                } transition-colors`}
-                data-testid={`checkbox-${task.id}`}
+                <Edit3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedTask(null)}
               >
-                {task.completed && <Check className="w-3 h-3 text-white" />}
-              </button>
+                <X className="w-4 h-4" />
+              </Button>
             </div>
           </div>
           
-          {task.repeatType && task.repeatType !== 'none' && (
-            <div className="flex items-center gap-1 mt-2">
-              <Calendar className="w-3 h-3 text-white/70" />
-              <span className="text-xs text-white/70 capitalize">
-                Repeats {task.repeatType}
-              </span>
+          <Badge className={taskTypeColors[task.taskType].replace('text-white', 'text-white/90')}>
+            {task.taskType.toUpperCase()}
+          </Badge>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Task Details */}
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Time</Label>
+              <p className="text-sm font-mono">{task.startTime} - {task.endTime}</p>
             </div>
+
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Category</Label>
+              <p className="text-sm capitalize">{task.category}</p>
+            </div>
+
+            {task.repeatType && task.repeatType !== 'none' && (
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Repeat</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm capitalize">{task.repeatType}</span>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  onClick={() => {
+                    setTasks(prev => prev.map(t => 
+                      t.id === task.id ? { ...t, completed: !t.completed } : t
+                    ));
+                    setSelectedTask(prev => prev ? { ...prev, completed: !prev.completed } : null);
+                  }}
+                  className={`w-5 h-5 rounded border-2 border-border flex items-center justify-center ${
+                    task.completed ? 'bg-primary' : 'hover:bg-muted'
+                  } transition-colors`}
+                >
+                  {task.completed && <Check className="w-3 h-3 text-primary-foreground" />}
+                </button>
+                <span className="text-sm">{task.completed ? 'Completed' : 'Pending'}</span>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Description */}
+          {task.description && (
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+              <p className="text-sm mt-1 leading-relaxed">{task.description}</p>
+            </div>
+          )}
+
+          {/* Islamic Content */}
+          {(task.arabicText || task.transliteration || task.translation) && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <Label className="text-sm font-medium text-muted-foreground">Islamic Content</Label>
+                
+                {task.arabicText && (
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <Label className="text-xs font-medium text-muted-foreground">Arabic</Label>
+                    <p className="text-lg font-arabic text-right mt-1" dir="rtl">
+                      {task.arabicText}
+                    </p>
+                  </div>
+                )}
+
+                {task.transliteration && (
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Transliteration</Label>
+                    <p className="text-sm italic mt-1">{task.transliteration}</p>
+                  </div>
+                )}
+
+                {task.translation && (
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Translation</Label>
+                    <p className="text-sm mt-1">"{task.translation}"</p>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -551,77 +642,83 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-foreground font-serif">Daily Islamic Planner</h2>
-          <p className="text-muted-foreground">
-            Structure your day around Islamic principles • {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
-          </p>
+    <div className="flex h-screen">
+      {/* Main Content */}
+      <div className={`flex-1 space-y-6 p-6 ${selectedTask ? 'pr-0' : ''}`}>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground font-serif">Daily Islamic Planner</h2>
+            <p className="text-muted-foreground">
+              Structure your day around Islamic principles • {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowAddTask(true)}
+              data-testid="button-add-task"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add New Task
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowAddTask(true)}
-            data-testid="button-add-task"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add New Task
-          </Button>
-        </div>
-      </div>
 
-      {/* Daily Planner */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Today's Schedule
-            <Badge variant="secondary" className="ml-auto">
-              {tasks.length} tasks
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div
-            ref={plannerRef}
-            className="relative"
-            style={{ height: '1440px' }} // 24 hours * 60px per hour
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-          >
-            {/* Timeline Hours */}
-            <div className="absolute left-0 top-0 w-16 h-full">
+        {/* Daily Planner */}
+        <Card className="flex-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Today's Schedule
+              <Badge variant="secondary" className="ml-auto">
+                {tasks.length} tasks
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              ref={plannerRef}
+              className="relative"
+              style={{ height: '1440px' }} // 24 hours * 60px per hour
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              {/* Timeline Hours */}
+              <div className="absolute left-0 top-0 w-16 h-full">
+                {hours.map((hour, index) => (
+                  <div
+                    key={hour}
+                    className="absolute flex items-center text-sm text-muted-foreground font-mono"
+                    style={{ top: `${(index / 24) * 100}%`, height: '60px' }}
+                  >
+                    <span className="w-12 text-right">{hour}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Hour Lines */}
               {hours.map((hour, index) => (
                 <div
-                  key={hour}
-                  className="absolute flex items-center text-sm text-muted-foreground font-mono"
-                  style={{ top: `${(index / 24) * 100}%`, height: '60px' }}
-                >
-                  <span className="w-12 text-right">{hour}</span>
-                </div>
+                  key={`line-${hour}`}
+                  className="absolute left-16 right-0 border-t border-border/30"
+                  style={{ top: `${(index / 24) * 100}%` }}
+                />
               ))}
+
+              {/* Task Cards */}
+              {tasks
+                .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                .map(task => (
+                  <TaskCard key={task.id} task={task} />
+                ))}
             </div>
+          </CardContent>
+        </Card>
+      </div>
 
-            {/* Hour Lines */}
-            {hours.map((hour, index) => (
-              <div
-                key={`line-${hour}`}
-                className="absolute left-16 right-0 border-t border-border/30"
-                style={{ top: `${(index / 24) * 100}%` }}
-              />
-            ))}
-
-            {/* Task Cards */}
-            {tasks
-              .sort((a, b) => a.startTime.localeCompare(b.startTime))
-              .map(task => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Task Details Sidebar */}
+      {selectedTask && <TaskDetailsPanel task={selectedTask} />}
 
       {/* Add Task Dialog */}
       <Dialog open={showAddTask} onOpenChange={setShowAddTask}>
@@ -756,6 +853,9 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                   onClick={() => {
                     setTasks(prev => prev.filter(t => t.id !== editingTask.id));
                     setEditingTask(null);
+                    if (selectedTask?.id === editingTask.id) {
+                      setSelectedTask(null);
+                    }
                   }}
                 >
                   Delete Task
@@ -766,6 +866,9 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                   </Button>
                   <Button onClick={() => {
                     setTasks(prev => prev.map(t => t.id === editingTask.id ? editingTask : t));
+                    if (selectedTask?.id === editingTask.id) {
+                      setSelectedTask(editingTask);
+                    }
                     setEditingTask(null);
                   }}>
                     Save Changes
