@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,6 @@ import { useAuth } from "@/lib/auth";
 interface TimeBlock {
   id: string;
   title: string;
-  description?: string;
   startTime: string;
   endTime: string;
   taskType: 'fard' | 'sunnah' | 'nafl' | 'wajib' | 'adhkar' | 'dua';
@@ -42,6 +40,18 @@ const taskTypeColors = {
   wajib: "bg-orange-500 border-orange-600 text-white",
   adhkar: "bg-purple-500 border-purple-600 text-white",
   dua: "bg-indigo-500 border-indigo-600 text-white"
+};
+
+const categoryColors: Record<string, string> = {
+  'health': '#22C55E', // Green
+  'family': '#F59E0B', // Amber
+  'work': '#3B82F6', // Blue
+  'personal': '#8B5CF6', // Purple
+  'errands': '#F97316', // Orange
+  'leisure': '#F43F5E', // Rose
+  'other': '#6B7280', // Gray
+  'prayer': '#3B82F6', // Blue for prayer
+  'remembrance': '#8B5CF6', // Purple for remembrance
 };
 
 // Sample Islamic tasks based on the PDF provided
@@ -550,15 +560,15 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
     const y = e.clientY - rect.top;
     const timelineHeight = rect.height;
     const position = (y / timelineHeight) * 100;
-    
+
     const newStartTime = positionToTime(position);
-    
+
     setTasks(prev => prev.map(task => {
       if (task.id === draggedTask) {
         const duration = calculateDuration(task.startTime, task.endTime);
         const startMinutes = parseInt(newStartTime.split(':')[0]) * 60 + parseInt(newStartTime.split(':')[1]);
         let endMinutes = startMinutes + duration;
-        
+
         // Clamp to prevent going past 23:59
         if (endMinutes >= 24 * 60) {
           endMinutes = 23 * 60 + 59; // Set to 23:59
@@ -566,18 +576,18 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
           const startHours = Math.floor(newStartMinutes / 60);
           const startMins = newStartMinutes % 60;
           const clampedStartTime = `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`;
-          
+
           return {
             ...task,
             startTime: clampedStartTime,
             endTime: '23:59'
           };
         }
-        
+
         const endHours = Math.floor(endMinutes / 60);
         const endMins = endMinutes % 60;
         const newEndTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
-        
+
         return {
           ...task,
           startTime: newStartTime,
@@ -586,7 +596,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       }
       return task;
     }));
-    
+
     setDraggedTask(null);
   }, [draggedTask, positionToTime, calculateDuration]);
 
@@ -684,7 +694,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
               </Button>
             </div>
           </div>
-        
+
           <Badge className={taskTypeColors[task.taskType].replace('text-white', 'text-white/90')}>
             {task.taskType.toUpperCase()}
           </Badge>
@@ -699,10 +709,29 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
               <p className="text-sm font-mono">{task.startTime} - {task.endTime}</p>
             </div>
 
-            <div>
+            {/* Category */}
+            <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-muted-foreground">Category</Label>
-              <p className="text-sm capitalize">{task.category}</p>
+              <Badge 
+                variant="secondary" 
+                className="text-white border-none"
+                style={{ 
+                  backgroundColor: categoryColors[task.category] || categoryColors.other
+                }}
+              >
+                {task.category.charAt(0).toUpperCase() + task.category.slice(1)}
+              </Badge>
             </div>
+
+            {/* Task Type */}
+            {task.taskType && (
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-muted-foreground">Task Type</Label>
+                <Badge variant="outline">
+                  {task.taskType}
+                </Badge>
+              </div>
+            )}
 
             {task.repeatType && task.repeatType !== 'none' && (
               <div>
@@ -751,7 +780,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
               <Separator />
               <div className="space-y-4">
                 <Label className="text-sm font-medium text-muted-foreground">Islamic Content</Label>
-                
+
                 {task.arabicText && (
                   <div className="bg-muted/50 p-4 rounded-lg">
                     <Label className="text-xs font-medium text-muted-foreground">Arabic</Label>
@@ -904,6 +933,26 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
         </div>
 
         <div>
+          <Label htmlFor="category">Category</Label>
+          <Select value={formData.category} onValueChange={(value) =>
+            setFormData({ ...formData, category: value })
+          }>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="health">Health & Well-Being</SelectItem>
+              <SelectItem value="family">Family & Relationships</SelectItem>
+              <SelectItem value="work">Work & Study</SelectItem>
+              <SelectItem value="personal">Personal Growth</SelectItem>
+              <SelectItem value="errands">Errands & Household</SelectItem>
+              <SelectItem value="leisure">Rest & Leisure</SelectItem>
+              <SelectItem value="other">Other / Miscellaneous</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
           <Label htmlFor="arabicText">Arabic Text (Optional)</Label>
           <Input
             id="arabicText"
@@ -1021,7 +1070,59 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                   return a.startTime.localeCompare(b.startTime);
                 })
                 .map(task => (
-                  <TaskCard key={task.id} task={task} />
+                  <div
+                    draggable
+                    onDragStart={() => handleDragStart(task.id)}
+                    onClick={() => setSelectedTask(task)}
+                    className={`absolute left-20 rounded-lg border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+                      isSelected 
+                        ? `${taskTypeColors[task.taskType]} ring-4 ring-white/50 shadow-2xl z-50 scale-105` 
+                        : `${taskTypeColors[task.taskType]} ${task.completed ? 'opacity-70' : ''} z-10`
+                    }`}
+                    style={{
+                      top: `${timeToPosition(task.startTime)}%`,
+                      height: `${Math.max(60, (calculateDuration(task.startTime, task.endTime) / 60) * 60)}px`,
+                      minHeight: '60px',
+                      right: selectedTask ? '25rem' : '1rem', // Leave more space for details panel when selected
+                    }}
+                    data-testid={`task-card-${task.id}`}
+                  >
+                    <div className="p-3 h-full flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded">
+                            {task.startTime} - {task.endTime}
+                          </span>
+                        </div>
+                        <h4 className="font-semibold text-sm text-white truncate">
+                          {task.title}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        <Badge 
+                          variant="secondary" 
+                          className="text-xs bg-white/20 text-white border-white/30"
+                        >
+                          {task.taskType}
+                        </Badge>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTasks(prev => prev.map(t => 
+                              t.id === task.id ? { ...t, completed: !t.completed } : t
+                            ));
+                          }}
+                          className={`w-5 h-5 rounded border-2 border-white/50 flex items-center justify-center ${
+                            task.completed ? 'bg-white/30' : 'hover:bg-white/20'
+                          } transition-colors`}
+                          data-testid={`checkbox-${task.id}`}
+                        >
+                          {task.completed && <Check className="w-3 h-3 text-white" />}
+                        </button>
+                        <ChevronRight className="w-4 h-4 text-white/60" />
+                      </div>
+                    </div>
+                  </div>
                 ))}
 
               {/* Floating Task Details Panel */}
@@ -1124,6 +1225,27 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div>
+                <Label>Category</Label>
+                <Select 
+                  value={editingTask.category} 
+                  onValueChange={(value) => setEditingTask({...editingTask, category: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="health">Health & Well-Being</SelectItem>
+                    <SelectItem value="family">Family & Relationships</SelectItem>
+                    <SelectItem value="work">Work & Study</SelectItem>
+                    <SelectItem value="personal">Personal Growth</SelectItem>
+                    <SelectItem value="errands">Errands & Household</SelectItem>
+                    <SelectItem value="leisure">Rest & Leisure</SelectItem>
+                    <SelectItem value="other">Other / Miscellaneous</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>

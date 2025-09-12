@@ -16,13 +16,49 @@ interface TaskCreationModalProps {
   selectedDate: string;
 }
 
-const taskTypes = [
-  { id: 'fard', name: 'Fard', description: 'Obligatory Islamic duties', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
-  { id: 'wajib', name: 'Wajib', description: 'Essential Islamic practices', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
-  { id: 'sunnah', name: 'Sunnah', description: 'Recommended prophetic practices', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
-  { id: 'nafl', name: 'Nafl', description: 'Optional good deeds', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
-  { id: 'adhkar', name: 'Adhkar', description: 'Remembrance of Allah', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
-  { id: 'dua', name: 'Dua', description: 'Supplications and prayers', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' }
+const categories = [
+  {
+    id: 'health',
+    name: 'Health & Well-Being',
+    color: '#22C55E',
+    taskTypes: ['Exercise', 'Walking', 'Meal tracking', 'Hydration', 'Sleep schedule']
+  },
+  {
+    id: 'family',
+    name: 'Family & Relationships',
+    color: '#F59E0B',
+    taskTypes: ['Family time', 'Call parents', 'Play with kids', 'Spouse time', 'Community service']
+  },
+  {
+    id: 'work',
+    name: 'Work & Study',
+    color: '#3B82F6',
+    taskTypes: ['Meetings', 'Deep work', 'Reading', 'Writing', 'Classes', 'Deadlines']
+  },
+  {
+    id: 'personal',
+    name: 'Personal Growth',
+    color: '#8B5CF6',
+    taskTypes: ['Journaling', 'Learning skills', 'Reading non-fiction', 'Language practice']
+  },
+  {
+    id: 'errands',
+    name: 'Errands & Household',
+    color: '#F97316',
+    taskTypes: ['Shopping', 'Cleaning', 'Bills', 'Repairs', 'Cooking']
+  },
+  {
+    id: 'leisure',
+    name: 'Rest & Leisure',
+    color: '#F43F5E',
+    taskTypes: ['Relax', 'Walk outdoors', 'Entertainment', 'Hobbies', 'Social time']
+  },
+  {
+    id: 'other',
+    name: 'Other / Miscellaneous',
+    color: '#6B7280',
+    taskTypes: ['Notes', 'Miscellaneous tasks', 'Catch-up items']
+  }
 ];
 
 const teamMembers = [
@@ -34,16 +70,20 @@ const teamMembers = [
 export function TaskCreationModal({ isOpen, onClose, selectedDate }: TaskCreationModalProps) {
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTaskType, setSelectedTaskType] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState("10:30");
   const [selectedDate_, setSelectedDate_] = useState(selectedDate);
   const [assignedMembers, setAssignedMembers] = useState<string[]>([]);
+
+  const selectedCategoryData = categories.find(cat => cat.id === selectedCategory);
 
   const handleSubmit = () => {
     // Handle task creation
     console.log({
       title: taskTitle,
       description: taskDescription,
+      category: selectedCategory,
       taskType: selectedTaskType,
       time: selectedTime,
       date: selectedDate_,
@@ -53,6 +93,7 @@ export function TaskCreationModal({ isOpen, onClose, selectedDate }: TaskCreatio
     // Reset form
     setTaskTitle("");
     setTaskDescription("");
+    setSelectedCategory("");
     setSelectedTaskType("");
     setSelectedTime("10:30");
     setAssignedMembers([]);
@@ -116,38 +157,35 @@ export function TaskCreationModal({ isOpen, onClose, selectedDate }: TaskCreatio
             />
           </div>
 
-          {/* Task Types */}
+          {/* Category Selection */}
           <div className="space-y-3">
-            <Label className="text-white font-medium">Task Types</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {taskTypes.map((type) => (
+            <Label className="text-white font-medium">Category</Label>
+            <div className="grid grid-cols-1 gap-2">
+              {categories.map((category) => (
                 <div
-                  key={type.id}
+                  key={category.id}
                   className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    selectedTaskType === type.id
+                    selectedCategory === category.id
                       ? 'border-blue-500 bg-blue-900/30'
                       : 'border-slate-600 hover:border-slate-500'
                   }`}
-                  onClick={() => setSelectedTaskType(type.id)}
-                  data-testid={`task-type-${type.id}`}
+                  onClick={() => {
+                    setSelectedCategory(category.id);
+                    setSelectedTaskType(""); // Reset task type when category changes
+                  }}
+                  data-testid={`category-${category.id}`}
                 >
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center">
-                      <span className="text-sm">
-                        {type.id === 'fard' && '🕌'}
-                        {type.id === 'wajib' && '⚡'}
-                        {type.id === 'sunnah' && '⭐'}
-                        {type.id === 'nafl' && '✨'}
-                        {type.id === 'adhkar' && '📿'}
-                        {type.id === 'dua' && '🤲'}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium text-white truncate">
-                        {type.name}
+                  <div className="flex items-center space-x-3">
+                    <div 
+                      className="w-4 h-4 rounded-full border"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-white">
+                        {category.name}
                       </h4>
                     </div>
-                    {selectedTaskType === type.id && (
+                    {selectedCategory === category.id && (
                       <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
                         <div className="w-2 h-2 bg-white rounded-full" />
                       </div>
@@ -157,6 +195,32 @@ export function TaskCreationModal({ isOpen, onClose, selectedDate }: TaskCreatio
               ))}
             </div>
           </div>
+
+          {/* Task Type Selection */}
+          {selectedCategoryData && (
+            <div className="space-y-3">
+              <Label className="text-white font-medium">Task Type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {selectedCategoryData.taskTypes.map((taskType) => (
+                  <div
+                    key={taskType}
+                    className={`p-2 rounded-lg border cursor-pointer transition-all text-center ${
+                      selectedTaskType === taskType
+                        ? 'border-blue-500 bg-blue-900/30'
+                        : 'border-slate-600 hover:border-slate-500'
+                    }`}
+                    onClick={() => setSelectedTaskType(taskType)}
+                    data-testid={`task-type-${taskType.replace(/\s+/g, '-').toLowerCase()}`}
+                  >
+                    <span className="text-sm text-white">{taskType}</span>
+                    {selectedTaskType === taskType && (
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-1" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Team Assignment */}
           <div className="space-y-3">
@@ -227,7 +291,7 @@ export function TaskCreationModal({ isOpen, onClose, selectedDate }: TaskCreatio
           <Button 
             onClick={handleSubmit}
             className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-medium py-3"
-            disabled={!taskTitle || !selectedTaskType}
+            disabled={!taskTitle || !selectedCategory || !selectedTaskType}
             data-testid="button-create-task"
           >
             Create
