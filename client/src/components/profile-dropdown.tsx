@@ -156,6 +156,7 @@ export function ProfileDropdown() {
   };
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full" data-testid="button-profile">
@@ -409,5 +410,6 @@ export function ProfileDropdown() {
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

@@ -43,8 +43,8 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true in production with HTTPS
-    httpOnly: false, // Allow client-side access for Replit environment
+    secure: process.env.NODE_ENV === 'production', // Enable HTTPS-only in production
+    httpOnly: true, // Prevent client-side access to session cookie
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: process.env.NODE_ENV === 'development' ? 'lax' : 'none', // Use lax for Replit preview
     path: '/', // Explicit path

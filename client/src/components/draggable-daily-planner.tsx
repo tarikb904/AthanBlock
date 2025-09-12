@@ -14,19 +14,31 @@ import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
+import { TimeBlock } from "@shared/schema";
 
-interface TimeBlock {
+// Unified interface for UI time blocks that includes all needed properties
+interface UITimeBlock {
   id: string;
   title: string;
+  description?: string;
   startTime: string;
   endTime: string;
-  taskType: 'fard' | 'sunnah' | 'nafl' | 'wajib' | 'adhkar' | 'dua';
+  duration: number; // in minutes
+  taskType: 'fard' | 'sunnah' | 'nafl' | 'wajib' | 'adhkar' | 'dua' | 'other';
   category: string;
   completed: boolean;
   repeatType?: 'none' | 'daily' | 'weekly' | 'monthly';
   arabicText?: string;
   transliteration?: string;
   translation?: string;
+  // Optional database fields
+  userId?: string;
+  date?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  isTemplate?: boolean | null;
+  tasks?: unknown;
+  createdAt?: Date | null;
 }
 
 interface DraggableDailyPlannerProps {
@@ -39,7 +51,64 @@ const taskTypeColors = {
   nafl: "bg-green-500 border-green-600 text-white",
   wajib: "bg-orange-500 border-orange-600 text-white",
   adhkar: "bg-purple-500 border-purple-600 text-white",
-  dua: "bg-indigo-500 border-indigo-600 text-white"
+  dua: "bg-indigo-500 border-indigo-600 text-white",
+  other: "bg-gray-500 border-gray-600 text-white"
+};
+
+// Helper function to calculate duration in minutes from start and end time
+const calculateDurationFromTimes = (startTime: string, endTime: string): number => {
+  const start = new Date(`2000-01-01 ${startTime}`);
+  const end = new Date(`2000-01-01 ${endTime}`);
+  const duration = (end.getTime() - start.getTime()) / (1000 * 60);
+  return Math.max(15, duration); // Minimum 15 minutes
+};
+
+// Helper function to convert database TimeBlock to UITimeBlock
+const dbToUITimeBlock = (dbBlock: TimeBlock): UITimeBlock => {
+  const endTime = new Date();
+  endTime.setHours(
+    parseInt(dbBlock.startTime.split(':')[0]),
+    parseInt(dbBlock.startTime.split(':')[1]) + dbBlock.duration,
+    0, 0
+  );
+  
+  return {
+    id: dbBlock.id,
+    title: dbBlock.title,
+    description: dbBlock.description || '',
+    startTime: dbBlock.startTime.slice(0, 5), // HH:MM format
+    endTime: endTime.toTimeString().slice(0, 5),
+    duration: dbBlock.duration,
+    taskType: 'other',
+    category: dbBlock.category,
+    completed: dbBlock.completed || false,
+    userId: dbBlock.userId,
+    date: dbBlock.date,
+    icon: dbBlock.icon,
+    color: dbBlock.color,
+    isTemplate: dbBlock.isTemplate,
+    tasks: dbBlock.tasks,
+    createdAt: dbBlock.createdAt
+  };
+};
+
+// Helper function to convert UITimeBlock to database TimeBlock
+const uiToDBTimeBlock = (uiBlock: UITimeBlock): Partial<TimeBlock> => {
+  return {
+    id: uiBlock.id,
+    title: uiBlock.title,
+    description: uiBlock.description,
+    startTime: uiBlock.startTime + ':00', // HH:MM:SS format for database
+    duration: uiBlock.duration,
+    category: uiBlock.category,
+    completed: uiBlock.completed,
+    userId: uiBlock.userId,
+    date: uiBlock.date,
+    icon: uiBlock.icon,
+    color: uiBlock.color,
+    isTemplate: uiBlock.isTemplate,
+    tasks: uiBlock.tasks
+  };
 };
 
 const categoryColors: Record<string, string> = {
@@ -55,13 +124,14 @@ const categoryColors: Record<string, string> = {
 };
 
 // Sample Islamic tasks based on the PDF provided
-const defaultIslamicTasks: TimeBlock[] = [
+const defaultIslamicTasks: UITimeBlock[] = [
   {
     id: '1',
     title: 'Tahajjud Prayer',
     description: 'Wake for late-night nafl (voluntary) worship',
     startTime: '02:30',
     endTime: '03:00',
+    duration: 30,
     taskType: 'nafl',
     category: 'prayer',
     completed: false,
@@ -73,6 +143,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: '2 rak\'ahs sunnah muʾakkadah before Fajr',
     startTime: '04:15',
     endTime: '04:40',
+    duration: 25,
     taskType: 'sunnah',
     category: 'prayer',
     completed: false,
@@ -84,6 +155,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: '2 rak\'ahs fard. Must be offered before sunrise',
     startTime: '04:40',
     endTime: '05:00',
+    duration: 20,
     taskType: 'fard',
     category: 'prayer',
     completed: false,
@@ -95,6 +167,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: 'Engage in the prescribed post-Fajr remembrances',
     startTime: '05:00',
     endTime: '05:20',
+    duration: 20,
     taskType: 'adhkar',
     category: 'remembrance',
     completed: false,
@@ -109,6 +182,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: '2 rak\'ahs nafl (sunrise prayer) ~15–20 min after sunrise',
     startTime: '06:20',
     endTime: '06:30',
+    duration: 10,
     taskType: 'nafl',
     category: 'prayer',
     completed: false,
@@ -120,6 +194,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: 'Optional nafl in mid-morning. 2 or 4 rak\'ahs after sunrise',
     startTime: '06:30',
     endTime: '07:00',
+    duration: 30,
     taskType: 'nafl',
     category: 'prayer',
     completed: false,
@@ -131,6 +206,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: '4 rak\'ahs sunnah mu\'akkadah before Dhuhr',
     startTime: '11:45',
     endTime: '12:10',
+    duration: 25,
     taskType: 'sunnah',
     category: 'prayer',
     completed: false,
@@ -142,6 +218,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: '4 rak\'ahs fard',
     startTime: '12:28',
     endTime: '12:40',
+    duration: 12,
     taskType: 'fard',
     category: 'prayer',
     completed: false,
@@ -153,6 +230,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: '4 rak\'ahs fard',
     startTime: '15:54',
     endTime: '16:15',
+    duration: 21,
     taskType: 'fard',
     category: 'prayer',
     completed: false,
@@ -164,6 +242,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: '3 rak\'ahs fard at sunset',
     startTime: '18:48',
     endTime: '19:00',
+    duration: 12,
     taskType: 'fard',
     category: 'prayer',
     completed: false,
@@ -175,6 +254,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: 'Recite prescribed evening remembrances',
     startTime: '19:10',
     endTime: '19:20',
+    duration: 10,
     taskType: 'adhkar',
     category: 'remembrance',
     completed: false,
@@ -189,6 +269,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: '4 rak\'ahs fard',
     startTime: '20:18',
     endTime: '20:30',
+    duration: 12,
     taskType: 'fard',
     category: 'prayer',
     completed: false,
@@ -200,6 +281,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: '3 rak\'ahs odd (Witr, Witrul-Isha)',
     startTime: '20:40',
     endTime: '20:50',
+    duration: 10,
     taskType: 'wajib',
     category: 'prayer',
     completed: false,
@@ -211,6 +293,7 @@ const defaultIslamicTasks: TimeBlock[] = [
     description: 'Before sleeping, perform recommended evening remembrances',
     startTime: '22:00',
     endTime: '22:20',
+    duration: 20,
     taskType: 'adhkar',
     category: 'remembrance',
     completed: false,
@@ -223,10 +306,10 @@ const defaultIslamicTasks: TimeBlock[] = [
 
 export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerProps) {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState<TimeBlock[]>([]);
+  const [tasks, setTasks] = useState<UITimeBlock[]>([]);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
-  const [selectedTask, setSelectedTask] = useState<TimeBlock | null>(null);
-  const [editingTask, setEditingTask] = useState<TimeBlock | null>(null);
+  const [selectedTask, setSelectedTask] = useState<UITimeBlock | null>(null);
+  const [editingTask, setEditingTask] = useState<UITimeBlock | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
   const plannerRef = useRef<HTMLDivElement>(null);
 
@@ -237,10 +320,10 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
   });
 
   // Generate Islamic tasks based on prayer times
-  const generateIslamicTasks = useCallback((prayerTimes: any) => {
+  const generateIslamicTasks = useCallback((prayerTimes: any): UITimeBlock[] => {
     if (!prayerTimes) return defaultIslamicTasks;
 
-    const tasks: TimeBlock[] = [];
+    const tasks: UITimeBlock[] = [];
     let taskId = 1;
 
     // Helper function to add minutes to time string
@@ -266,6 +349,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: 'Wake for late-night nafl (voluntary) worship',
       startTime: '02:30',
       endTime: '03:00',
+      duration: 30,
       taskType: 'nafl',
       category: 'prayer',
       completed: false,
@@ -281,6 +365,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '2 rak\'ahs sunnah muʾakkadah before Fajr',
       startTime: preFajrTime,
       endTime: fajrSunnahEnd,
+      duration: calculateDurationFromTimes(preFajrTime, fajrSunnahEnd),
       taskType: 'sunnah',
       category: 'prayer',
       completed: false,
@@ -295,6 +380,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '2 rak\'ahs fard. Must be offered before sunrise',
       startTime: prayerTimes.fajr,
       endTime: fajrEndTime,
+      duration: 20,
       taskType: 'fard',
       category: 'prayer',
       completed: false,
@@ -308,6 +394,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: 'Engage in the prescribed post-Fajr remembrances',
       startTime: fajrEndTime,
       endTime: addMinutesToTime(fajrEndTime, 20),
+      duration: 20,
       taskType: 'adhkar',
       category: 'remembrance',
       completed: false,
@@ -326,6 +413,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '2 rak\'ahs nafl (sunrise prayer) ~10 min after sunrise',
       startTime: ishraqTime,
       endTime: ishraqEndTime,
+      duration: 10,
       taskType: 'nafl',
       category: 'prayer',
       completed: false,
@@ -340,6 +428,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: 'Optional nafl in mid-morning. 2 or 4 rak\'ahs after sunrise',
       startTime: duhaTime,
       endTime: addMinutesToTime(duhaTime, 30),
+      duration: 30,
       taskType: 'nafl',
       category: 'prayer',
       completed: false,
@@ -355,6 +444,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '4 rak\'ahs sunnah mu\'akkadah before Dhuhr',
       startTime: preDhuhrTime,
       endTime: dhuhrSunnahEnd,
+      duration: calculateDurationFromTimes(preDhuhrTime, dhuhrSunnahEnd),
       taskType: 'sunnah',
       category: 'prayer',
       completed: false,
@@ -369,6 +459,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '4 rak\'ahs fard',
       startTime: prayerTimes.dhuhr,
       endTime: dhuhrEndTime,
+      duration: 15,
       taskType: 'fard',
       category: 'prayer',
       completed: false,
@@ -382,6 +473,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '2 rak\'ahs sunnah mu\'akkadah after Dhuhr',
       startTime: dhuhrEndTime,
       endTime: addMinutesToTime(dhuhrEndTime, 15),
+      duration: 15,
       taskType: 'sunnah',
       category: 'prayer',
       completed: false,
@@ -396,6 +488,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '4 rak\'ahs fard',
       startTime: prayerTimes.asr,
       endTime: asrEndTime,
+      duration: 20,
       taskType: 'fard',
       category: 'prayer',
       completed: false,
@@ -410,6 +503,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '3 rak\'ahs fard at sunset',
       startTime: prayerTimes.maghrib,
       endTime: maghribEndTime,
+      duration: 15,
       taskType: 'fard',
       category: 'prayer',
       completed: false,
@@ -423,6 +517,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '2 rak\'ahs sunnah mu\'akkadah after Maghrib',
       startTime: maghribEndTime,
       endTime: addMinutesToTime(maghribEndTime, 15),
+      duration: 15,
       taskType: 'sunnah',
       category: 'prayer',
       completed: false,
@@ -437,6 +532,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: 'Recite prescribed evening remembrances',
       startTime: eveningAdhkarStart,
       endTime: addMinutesToTime(eveningAdhkarStart, 15),
+      duration: 15,
       taskType: 'adhkar',
       category: 'remembrance',
       completed: false,
@@ -454,6 +550,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '4 rak\'ahs fard',
       startTime: prayerTimes.isha,
       endTime: ishaEndTime,
+      duration: 15,
       taskType: 'fard',
       category: 'prayer',
       completed: false,
@@ -467,6 +564,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '2 rak\'ahs sunnah mu\'akkadah after Isha',
       startTime: ishaEndTime,
       endTime: addMinutesToTime(ishaEndTime, 15),
+      duration: 15,
       taskType: 'sunnah',
       category: 'prayer',
       completed: false,
@@ -481,6 +579,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: '3 rak\'ahs odd (Witr, Witrul-Isha)',
       startTime: witrTime,
       endTime: addMinutesToTime(witrTime, 15),
+      duration: 15,
       taskType: 'wajib',
       category: 'prayer',
       completed: false,
@@ -494,6 +593,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       description: 'Before sleeping, perform recommended evening remembrances',
       startTime: '22:00',
       endTime: '22:20',
+      duration: 20,
       taskType: 'adhkar',
       category: 'remembrance',
       completed: false,
@@ -1069,8 +1169,11 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                   if (selectedTask?.id === b.id) return -1;
                   return a.startTime.localeCompare(b.startTime);
                 })
-                .map(task => (
+                .map(task => {
+                  const isSelected = selectedTask?.id === task.id;
+                  return (
                   <div
+                    key={task.id}
                     draggable
                     onDragStart={() => handleDragStart(task.id)}
                     onClick={() => setSelectedTask(task)}
@@ -1123,7 +1226,8 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
 
               {/* Floating Task Details Panel */}
               {selectedTask && <TaskDetailsPanel task={selectedTask} />}
