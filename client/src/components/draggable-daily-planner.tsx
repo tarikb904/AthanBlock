@@ -658,9 +658,10 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
 
     return (
       <div 
-        className="absolute right-4 w-80 bg-card border border-border rounded-lg shadow-xl z-40 max-h-[80vh] flex flex-col"
+        className="absolute right-4 w-80 bg-card border border-border rounded-lg shadow-xl z-40 flex flex-col"
         style={{
-          top: `${Math.max(startPos, 5)}%`, // Align with task but ensure it's visible
+          top: `${Math.max(startPos, 5)}%`,
+          height: `${Math.min(80, 100 - Math.max(startPos, 5))}vh`, // Dynamic height based on position
         }}
       >
         {/* Fixed Header */}
@@ -692,7 +693,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 min-h-0">
           {/* Task Details */}
           <div className="space-y-4">
             <div>
