@@ -655,13 +655,20 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
 
   const TaskDetailsPanel = ({ task }: { task: TimeBlock }) => {
     const startPos = timeToPosition(task.startTime);
+    
+    // Calculate position but keep height consistent
+    const topPosition = Math.max(startPos, 5);
+    const maxHeight = 80; // Fixed 80vh height for consistency
+    
+    // If the panel would go off-screen at the bottom, position it higher
+    const adjustedTop = topPosition + maxHeight > 95 ? 95 - maxHeight : topPosition;
 
     return (
       <div 
         className="absolute right-4 w-80 bg-card border border-border rounded-lg shadow-xl z-40 flex flex-col"
         style={{
-          top: `${Math.max(startPos, 5)}%`,
-          height: `${Math.min(80, 100 - Math.max(startPos, 5))}vh`, // Dynamic height based on position
+          top: `${adjustedTop}%`,
+          height: `${maxHeight}vh`, // Consistent height for all tasks
         }}
       >
         {/* Fixed Header */}
