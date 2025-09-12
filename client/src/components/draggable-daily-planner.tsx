@@ -610,7 +610,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
           top: `${startPos}%`,
           height: `${height}px`,
           minHeight: '60px',
-          right: selectedTask ? '24rem' : '1rem', // Leave space for details panel when selected
+          right: selectedTask ? '25rem' : '1rem', // Leave more space for details panel when selected
         }}
         data-testid={`task-card-${task.id}`}
       >
@@ -654,21 +654,12 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
   };
 
   const TaskDetailsPanel = ({ task }: { task: TimeBlock }) => {
-    const startPos = timeToPosition(task.startTime);
-    
-    // Calculate position but keep height consistent
-    const topPosition = Math.max(startPos, 5);
-    const maxHeight = 80; // Fixed 80vh height for consistency
-    
-    // If the panel would go off-screen at the bottom, position it higher
-    const adjustedTop = topPosition + maxHeight > 95 ? 95 - maxHeight : topPosition;
-
     return (
       <div 
-        className="absolute right-4 w-80 bg-card border border-border rounded-lg shadow-xl z-40 flex flex-col"
+        className="fixed right-4 top-20 w-80 bg-card border border-border rounded-lg shadow-xl z-40 flex flex-col"
         style={{
-          top: `${adjustedTop}%`,
-          height: `${maxHeight}vh`, // Consistent height for all tasks
+          height: '80vh', // Consistent height for all tasks
+          maxHeight: 'calc(100vh - 6rem)', // Ensure it doesn't go off screen
         }}
       >
         {/* Fixed Header */}
