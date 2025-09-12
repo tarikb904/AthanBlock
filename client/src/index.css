@@ -133,6 +133,32 @@
   .pulse-gentle {
     animation: pulse-gentle 2s infinite;
   }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+
+  /* Ensure smooth scrolling for task details panel */
+  .task-details-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) hsl(var(--muted));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 
 @keyframes pulse-gentle {

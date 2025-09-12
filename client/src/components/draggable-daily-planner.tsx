@@ -12,6 +12,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Clock, Settings, Check, Edit3, Calendar, X, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/lib/auth";
 
 interface TimeBlock {
   id: string;
@@ -209,12 +212,300 @@ const defaultIslamicTasks: TimeBlock[] = [
 ];
 
 export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerProps) {
-  const [tasks, setTasks] = useState<TimeBlock[]>(defaultIslamicTasks);
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<TimeBlock[]>([]);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<TimeBlock | null>(null);
   const [editingTask, setEditingTask] = useState<TimeBlock | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
   const plannerRef = useRef<HTMLDivElement>(null);
+
+  // Fetch prayer times from API
+  const { data: prayerTimesData, isLoading: prayerTimesLoading } = useQuery({
+    queryKey: ["/api/prayer-times", selectedDate],
+    staleTime: 1000 * 60 * 30, // 30 minutes
+  });
+
+  // Generate Islamic tasks based on prayer times
+  const generateIslamicTasks = useCallback((prayerTimes: any) => {
+    if (!prayerTimes) return defaultIslamicTasks;
+
+    const tasks: TimeBlock[] = [];
+    let taskId = 1;
+
+    // Helper function to add minutes to time string
+    const addMinutesToTime = (timeStr: string, minutes: number) => {
+      const [hours, mins] = timeStr.split(':').map(Number);
+      const date = new Date();
+      date.setHours(hours, mins + minutes, 0, 0);
+      return date.toTimeString().slice(0, 5);
+    };
+
+    // Helper function to subtract minutes from time string  
+    const subtractMinutesFromTime = (timeStr: string, minutes: number) => {
+      const [hours, mins] = timeStr.split(':').map(Number);
+      const date = new Date();
+      date.setHours(hours, mins - minutes, 0, 0);
+      return date.toTimeString().slice(0, 5);
+    };
+
+    // Tahajjud (pre-dawn)
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Tahajjud Prayer',
+      description: 'Wake for late-night nafl (voluntary) worship',
+      startTime: '02:30',
+      endTime: '03:00',
+      taskType: 'nafl',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Pre-Fajr Sunnah
+    const preFajrTime = subtractMinutesFromTime(prayerTimes.fajr, 25);
+    const fajrSunnahEnd = subtractMinutesFromTime(prayerTimes.fajr, 5);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Sunnah Fajr',
+      description: '2 rak\'ahs sunnah muʾakkadah before Fajr',
+      startTime: preFajrTime,
+      endTime: fajrSunnahEnd,
+      taskType: 'sunnah',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Fajr Prayer (Fard)
+    const fajrEndTime = addMinutesToTime(prayerTimes.fajr, 20);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Fajr Prayer',
+      description: '2 rak\'ahs fard. Must be offered before sunrise',
+      startTime: prayerTimes.fajr,
+      endTime: fajrEndTime,
+      taskType: 'fard',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Morning Adhkar
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Morning Adhkar',
+      description: 'Engage in the prescribed post-Fajr remembrances',
+      startTime: fajrEndTime,
+      endTime: addMinutesToTime(fajrEndTime, 20),
+      taskType: 'adhkar',
+      category: 'remembrance',
+      completed: false,
+      repeatType: 'daily',
+      arabicText: 'اللَّهُمَّ بِكَ أَصْبَحْنَا وَبِكَ أَمْسَيْنَا',
+      transliteration: 'Allahumma bika asbahnā wa bika amsaynā',
+      translation: 'O Allah, by Your leave we have reached the morning'
+    });
+
+    // Ishraq Prayer (10 minutes after sunrise)
+    const ishraqTime = addMinutesToTime(prayerTimes.sunrise, 10);
+    const ishraqEndTime = addMinutesToTime(ishraqTime, 10);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Ishraq Prayer',
+      description: '2 rak\'ahs nafl (sunrise prayer) ~10 min after sunrise',
+      startTime: ishraqTime,
+      endTime: ishraqEndTime,
+      taskType: 'nafl',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Duha Prayer
+    const duhaTime = addMinutesToTime(prayerTimes.sunrise, 30);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Duha Prayer',
+      description: 'Optional nafl in mid-morning. 2 or 4 rak\'ahs after sunrise',
+      startTime: duhaTime,
+      endTime: addMinutesToTime(duhaTime, 30),
+      taskType: 'nafl',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Pre-Dhuhr Sunnah
+    const preDhuhrTime = subtractMinutesFromTime(prayerTimes.dhuhr, 25);
+    const dhuhrSunnahEnd = subtractMinutesFromTime(prayerTimes.dhuhr, 5);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Pre-Dhuhr Sunnah',
+      description: '4 rak\'ahs sunnah mu\'akkadah before Dhuhr',
+      startTime: preDhuhrTime,
+      endTime: dhuhrSunnahEnd,
+      taskType: 'sunnah',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Dhuhr Prayer (Fard)
+    const dhuhrEndTime = addMinutesToTime(prayerTimes.dhuhr, 15);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Dhuhr Prayer',
+      description: '4 rak\'ahs fard',
+      startTime: prayerTimes.dhuhr,
+      endTime: dhuhrEndTime,
+      taskType: 'fard',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Post-Dhuhr Sunnah
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Post-Dhuhr Sunnah',
+      description: '2 rak\'ahs sunnah mu\'akkadah after Dhuhr',
+      startTime: dhuhrEndTime,
+      endTime: addMinutesToTime(dhuhrEndTime, 15),
+      taskType: 'sunnah',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Asr Prayer (Fard)
+    const asrEndTime = addMinutesToTime(prayerTimes.asr, 20);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Asr Prayer',
+      description: '4 rak\'ahs fard',
+      startTime: prayerTimes.asr,
+      endTime: asrEndTime,
+      taskType: 'fard',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Maghrib Prayer (Fard)
+    const maghribEndTime = addMinutesToTime(prayerTimes.maghrib, 15);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Maghrib Prayer',
+      description: '3 rak\'ahs fard at sunset',
+      startTime: prayerTimes.maghrib,
+      endTime: maghribEndTime,
+      taskType: 'fard',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Post-Maghrib Sunnah
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Post-Maghrib Sunnah',
+      description: '2 rak\'ahs sunnah mu\'akkadah after Maghrib',
+      startTime: maghribEndTime,
+      endTime: addMinutesToTime(maghribEndTime, 15),
+      taskType: 'sunnah',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Evening Adhkar
+    const eveningAdhkarStart = addMinutesToTime(maghribEndTime, 15);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Evening Adhkar',
+      description: 'Recite prescribed evening remembrances',
+      startTime: eveningAdhkarStart,
+      endTime: addMinutesToTime(eveningAdhkarStart, 15),
+      taskType: 'adhkar',
+      category: 'remembrance',
+      completed: false,
+      repeatType: 'daily',
+      arabicText: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ',
+      transliteration: 'Amsaynā wa amsal-mulku lillāh',
+      translation: 'We have reached the evening and unto Allah belongs all sovereignty'
+    });
+
+    // Isha Prayer (Fard)
+    const ishaEndTime = addMinutesToTime(prayerTimes.isha, 15);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Isha Prayer',
+      description: '4 rak\'ahs fard',
+      startTime: prayerTimes.isha,
+      endTime: ishaEndTime,
+      taskType: 'fard',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Post-Isha Sunnah
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Post-Isha Sunnah',
+      description: '2 rak\'ahs sunnah mu\'akkadah after Isha',
+      startTime: ishaEndTime,
+      endTime: addMinutesToTime(ishaEndTime, 15),
+      taskType: 'sunnah',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Witr Prayer
+    const witrTime = addMinutesToTime(ishaEndTime, 15);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Witr Prayer',
+      description: '3 rak\'ahs odd (Witr, Witrul-Isha)',
+      startTime: witrTime,
+      endTime: addMinutesToTime(witrTime, 15),
+      taskType: 'wajib',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Bedtime Duas
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Bedtime Duas',
+      description: 'Before sleeping, perform recommended evening remembrances',
+      startTime: '22:00',
+      endTime: '22:20',
+      taskType: 'adhkar',
+      category: 'remembrance',
+      completed: false,
+      repeatType: 'daily',
+      arabicText: 'سُورَةُ الْمُلْكِ، آيَةُ الْكُرْسِيِّ',
+      transliteration: 'Surah al-Mulk, Ayat al-Kursi',
+      translation: 'Recite Surah Al-Mulk and Ayat Al-Kursi for protection'
+    });
+
+    return tasks;
+  }, []);
+
+  // Update tasks when prayer times are fetched
+  useEffect(() => {
+    if (prayerTimesData && !prayerTimesLoading) {
+      const generatedTasks = generateIslamicTasks(prayerTimesData);
+      setTasks(generatedTasks);
+    } else if (!prayerTimesData && !prayerTimesLoading) {
+      // Fallback to default tasks if no prayer times available
+      setTasks(defaultIslamicTasks);
+    }
+  }, [prayerTimesData, prayerTimesLoading, generateIslamicTasks]);
 
   // Generate 24 hour markers
   const hours = Array.from({ length: 24 }, (_, i) => 
@@ -364,46 +655,44 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
 
   const TaskDetailsPanel = ({ task }: { task: TimeBlock }) => {
     const startPos = timeToPosition(task.startTime);
-    const duration = calculateDuration(task.startTime, task.endTime);
-    const height = Math.max(300, (duration / 60) * 60); // Minimum height for readability
 
     return (
       <div 
-        className="absolute right-4 w-80 bg-card border border-border rounded-lg shadow-xl z-40 overflow-hidden"
+        className="absolute right-4 w-80 bg-card border border-border rounded-lg shadow-xl z-40 max-h-[80vh] flex flex-col"
         style={{
           top: `${Math.max(startPos, 5)}%`, // Align with task but ensure it's visible
-          maxHeight: `${Math.min(height + 100, 500)}px` // Adaptive height with max limit
         }}
       >
-        <div className="flex flex-col h-full">
-          <div className="p-4 border-b bg-muted/50">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold">{task.title}</h3>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingTask(task)}
-                  data-testid={`button-edit-${task.id}`}
-                >
-                  <Edit3 className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedTask(null)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
+        {/* Fixed Header */}
+        <div className="p-4 border-b bg-muted/50 flex-shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-semibold truncate">{task.title}</h3>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingTask(task)}
+                data-testid={`button-edit-${task.id}`}
+              >
+                <Edit3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedTask(null)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
             </div>
-          
-          <Badge className={taskTypeColors[task.taskType].replace('text-white', 'text-white/90')}>
-              {task.taskType.toUpperCase()}
-            </Badge>
           </div>
+        
+          <Badge className={taskTypeColors[task.taskType].replace('text-white', 'text-white/90')}>
+            {task.taskType.toUpperCase()}
+          </Badge>
+        </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Task Details */}
           <div className="space-y-4">
             <div>
@@ -467,7 +756,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                 {task.arabicText && (
                   <div className="bg-muted/50 p-4 rounded-lg">
                     <Label className="text-xs font-medium text-muted-foreground">Arabic</Label>
-                    <p className="text-lg font-arabic text-right mt-1" dir="rtl">
+                    <p className="text-lg text-right mt-1" dir="rtl" style={{ fontFamily: 'Arabic UI, Geeza Pro, Arabic Typesetting, serif' }}>
                       {task.arabicText}
                     </p>
                   </div>
@@ -489,7 +778,9 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
               </div>
             </>
           )}
-          </div>
+
+          {/* Additional spacing at bottom for scrolling */}
+          <div className="h-4"></div>
         </div>
       </div>
     );
@@ -665,6 +956,8 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
             <h2 className="text-3xl font-bold text-foreground font-serif">Daily Islamic Planner</h2>
             <p className="text-muted-foreground">
               Structure your day around Islamic principles • {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
+              {prayerTimesLoading && " • Loading prayer times..."}
+              {prayerTimesData && " • Prayer times integrated"}
             </p>
           </div>
           <div className="flex items-center gap-2">
