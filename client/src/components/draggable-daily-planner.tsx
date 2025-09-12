@@ -740,12 +740,12 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
           <Separator />
 
           {/* Description */}
-          {task.description && (
-            <div>
-              <Label className="text-sm font-medium text-muted-foreground">Description</Label>
-              <p className="text-sm mt-1 leading-relaxed">{task.description}</p>
+          <div>
+            <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+            <div className="text-sm mt-1 leading-relaxed min-h-[3rem] flex items-start">
+              <p className="w-full">{task.description || 'No description available'}</p>
             </div>
-          )}
+          </div>
 
           {/* Islamic Content */}
           {(task.arabicText || task.transliteration || task.translation) && (
