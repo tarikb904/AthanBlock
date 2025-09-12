@@ -303,21 +303,23 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
     const startPos = timeToPosition(task.startTime);
     const duration = calculateDuration(task.startTime, task.endTime);
     const height = Math.max(60, (duration / 60) * 60); // 60px per hour minimum
+    const isSelected = selectedTask?.id === task.id;
 
     return (
       <div
         draggable
         onDragStart={() => handleDragStart(task.id)}
         onClick={() => setSelectedTask(task)}
-        className={`absolute left-20 right-4 rounded-lg border cursor-pointer hover:shadow-lg transition-all duration-200 ${
-          selectedTask?.id === task.id 
-            ? `${taskTypeColors[task.taskType]} ring-2 ring-white/50` 
-            : `${taskTypeColors[task.taskType]} ${task.completed ? 'opacity-70' : ''}`
+        className={`absolute left-20 rounded-lg border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+          isSelected 
+            ? `${taskTypeColors[task.taskType]} ring-4 ring-white/50 shadow-2xl z-50 scale-105` 
+            : `${taskTypeColors[task.taskType]} ${task.completed ? 'opacity-70' : ''} z-10`
         }`}
         style={{
           top: `${startPos}%`,
           height: `${height}px`,
-          minHeight: '60px'
+          minHeight: '60px',
+          right: selectedTask ? '24rem' : '1rem', // Leave space for details panel when selected
         }}
         data-testid={`task-card-${task.id}`}
       >
@@ -361,36 +363,47 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
   };
 
   const TaskDetailsPanel = ({ task }: { task: TimeBlock }) => {
+    const startPos = timeToPosition(task.startTime);
+    const duration = calculateDuration(task.startTime, task.endTime);
+    const height = Math.max(300, (duration / 60) * 60); // Minimum height for readability
+
     return (
-      <div className="w-80 bg-card border-l h-screen overflow-y-auto">
-        <div className="p-6 border-b">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">{task.title}</h3>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setEditingTask(task)}
-                data-testid={`button-edit-${task.id}`}
-              >
-                <Edit3 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedTask(null)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
+      <div 
+        className="absolute right-4 w-80 bg-card border border-border rounded-lg shadow-xl z-40 overflow-hidden"
+        style={{
+          top: `${Math.max(startPos, 5)}%`, // Align with task but ensure it's visible
+          maxHeight: `${Math.min(height + 100, 500)}px` // Adaptive height with max limit
+        }}
+      >
+        <div className="flex flex-col h-full">
+          <div className="p-4 border-b bg-muted/50">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold">{task.title}</h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingTask(task)}
+                  data-testid={`button-edit-${task.id}`}
+                >
+                  <Edit3 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedTask(null)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
-          </div>
           
           <Badge className={taskTypeColors[task.taskType].replace('text-white', 'text-white/90')}>
-            {task.taskType.toUpperCase()}
-          </Badge>
-        </div>
+              {task.taskType.toUpperCase()}
+            </Badge>
+          </div>
 
-        <div className="p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Task Details */}
           <div className="space-y-4">
             <div>
@@ -476,6 +489,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
               </div>
             </>
           )}
+          </div>
         </div>
       </div>
     );
@@ -642,9 +656,9 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen relative">
       {/* Main Content */}
-      <div className={`flex-1 space-y-6 p-6 ${selectedTask ? 'pr-0' : ''}`}>
+      <div className="flex-1 space-y-6 p-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -706,19 +720,24 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                 />
               ))}
 
-              {/* Task Cards */}
+              {/* Task Cards - Sort to bring selected task to front */}
               {tasks
-                .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                .sort((a, b) => {
+                  // Selected task comes first (highest z-index via CSS)
+                  if (selectedTask?.id === a.id) return 1;
+                  if (selectedTask?.id === b.id) return -1;
+                  return a.startTime.localeCompare(b.startTime);
+                })
                 .map(task => (
                   <TaskCard key={task.id} task={task} />
                 ))}
+
+              {/* Floating Task Details Panel */}
+              {selectedTask && <TaskDetailsPanel task={selectedTask} />}
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Task Details Sidebar */}
-      {selectedTask && <TaskDetailsPanel task={selectedTask} />}
 
       {/* Add Task Dialog */}
       <Dialog open={showAddTask} onOpenChange={setShowAddTask}>
