@@ -356,6 +356,21 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       repeatType: 'daily'
     });
 
+    // Fajr Prayer (Fard) - declare fajrEndTime first
+    const fajrEndTime = addMinutesToTime(prayerTimes.fajr, 20);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Fajr Prayer',
+      description: '2 rak\'ahs fard. Must be offered before sunrise',
+      startTime: prayerTimes.fajr,
+      endTime: fajrEndTime,
+      duration: 20,
+      taskType: 'fard',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
     // Post-Fajr Sunnah (after fard, before sunrise)
     const postFajrTime = fajrEndTime;
     const postFajrSunnahEnd = addMinutesToTime(postFajrTime, 15);
@@ -370,21 +385,6 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       endTime: safeFajrSunnahEnd,
       duration: calculateDurationFromTimes(postFajrTime, safeFajrSunnahEnd),
       taskType: 'sunnah',
-      category: 'prayer',
-      completed: false,
-      repeatType: 'daily'
-    });
-
-    // Fajr Prayer (Fard)
-    const fajrEndTime = addMinutesToTime(prayerTimes.fajr, 20);
-    tasks.push({
-      id: (taskId++).toString(),
-      title: 'Fajr Prayer',
-      description: '2 rak\'ahs fard. Must be offered before sunrise',
-      startTime: prayerTimes.fajr,
-      endTime: fajrEndTime,
-      duration: 20,
-      taskType: 'fard',
       category: 'prayer',
       completed: false,
       repeatType: 'daily'
@@ -438,6 +438,35 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       repeatType: 'daily'
     });
 
+    // Dhuhr Prayer (Fard) - declare dhuhrEndTime first
+    const dhuhrEndTime = addMinutesToTime(prayerTimes.dhuhr, 15);
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Dhuhr Prayer',
+      description: '4 rak\'ahs fard',
+      startTime: prayerTimes.dhuhr,
+      endTime: dhuhrEndTime,
+      duration: 15,
+      taskType: 'fard',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
+    // Post-Dhuhr Sunnah
+    tasks.push({
+      id: (taskId++).toString(),
+      title: 'Post-Dhuhr Sunnah',
+      description: '2 rak\'ahs sunnah mu\'akkadah after Dhuhr',
+      startTime: dhuhrEndTime,
+      endTime: addMinutesToTime(dhuhrEndTime, 15),
+      duration: 15,
+      taskType: 'sunnah',
+      category: 'prayer',
+      completed: false,
+      repeatType: 'daily'
+    });
+
     // Additional Post-Dhuhr Sunnah (4 rak'ahs)
     const additionalDhuhrTime = addMinutesToTime(dhuhrEndTime, 15);
     const additionalDhuhrEnd = addMinutesToTime(additionalDhuhrTime, 20);
@@ -453,9 +482,6 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       completed: false,
       repeatType: 'daily'
     });
-
-    // Dhuhr Prayer (Fard)
-    const dhuhrEndTime = addMinutesToTime(prayerTimes.dhuhr, 15);
     tasks.push({
       id: (taskId++).toString(),
       title: 'Dhuhr Prayer',
@@ -625,7 +651,18 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
     `${i.toString().padStart(2, '0')}:00`
   );
 
-  // Calculate task position and height based on time
+  // Unified positioning system - 1px per minute
+  const MINUTE_PX = 1;
+  const TIMELINE_HEIGHT = 1440; // 24 hours * 60 minutes
+  
+  // Calculate task position in pixels based on time
+  const timeToPositionPx = useCallback((time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    return totalMinutes * MINUTE_PX;
+  }, []);
+  
+  // Legacy percentage calculation for existing logic
   const timeToPosition = useCallback((time: string) => {
     const [hours, minutes] = time.split(':').map(Number);
     const totalMinutes = hours * 60 + minutes;
@@ -639,50 +676,56 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
     return Math.max(15, duration); // Minimum 15 minutes
   }, []);
 
-  // Lane-based collision detection for overlapping tasks
+  // Sweep-line lane assignment for collision detection
   const calculateTaskLanes = useCallback((tasks: UITimeBlock[]) => {
-    const tasksWithLanes = tasks.map(task => ({ ...task, lane: 0, totalLanes: 1 }));
+    if (tasks.length === 0) return [];
     
-    // Sort tasks by start time for lane assignment
-    tasksWithLanes.sort((a, b) => a.startTime.localeCompare(b.startTime));
-    
-    // Check if two tasks overlap
-    const tasksOverlap = (task1: UITimeBlock, task2: UITimeBlock) => {
-      const start1 = new Date(`2000-01-01 ${task1.startTime}`).getTime();
-      const end1 = new Date(`2000-01-01 ${task1.endTime}`).getTime();
-      const start2 = new Date(`2000-01-01 ${task2.startTime}`).getTime();
-      const end2 = new Date(`2000-01-01 ${task2.endTime}`).getTime();
-      
-      return start1 < end2 && start2 < end1;
+    // Convert time strings to minutes for easier calculation
+    const timeToMinutes = (timeStr: string) => {
+      const [hours, mins] = timeStr.split(':').map(Number);
+      return hours * 60 + mins;
     };
     
-    // Assign lanes using greedy algorithm
+    // Sort tasks by start time
+    const sortedTasks = [...tasks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    
+    // Initialize with lane 0 and totalLanes 1
+    const tasksWithLanes = sortedTasks.map(task => ({ 
+      ...task, 
+      lane: 0, 
+      totalLanes: 1,
+      startMinutes: timeToMinutes(task.startTime),
+      endMinutes: timeToMinutes(task.endTime)
+    }));
+    
+    // Track active tasks (those that overlap with current time)
+    const activeTasks = [];
+    
     for (let i = 0; i < tasksWithLanes.length; i++) {
       const currentTask = tasksWithLanes[i];
-      const overlappingTasks = [];
       
-      // Find all overlapping tasks
-      for (let j = 0; j < tasksWithLanes.length; j++) {
-        if (i !== j && tasksOverlap(currentTask, tasksWithLanes[j])) {
-          overlappingTasks.push(tasksWithLanes[j]);
-        }
+      // Remove tasks that have ended before current task starts
+      while (activeTasks.length > 0 && activeTasks[0].endMinutes <= currentTask.startMinutes) {
+        activeTasks.shift();
       }
       
-      // Find the smallest available lane
-      const usedLanes = new Set(overlappingTasks.map(task => task.lane));
+      // Find used lanes by active tasks
+      const usedLanes = new Set(activeTasks.map(task => task.lane));
+      
+      // Assign smallest available lane
       let lane = 0;
       while (usedLanes.has(lane)) {
         lane++;
       }
       currentTask.lane = lane;
       
-      // Calculate total lanes needed for this overlapping group
-      const allTasksInGroup = [currentTask, ...overlappingTasks];
-      const maxLane = Math.max(...allTasksInGroup.map(task => task.lane));
-      const totalLanes = maxLane + 1;
+      // Add current task to active tasks (keep sorted by end time)
+      activeTasks.push(currentTask);
+      activeTasks.sort((a, b) => a.endMinutes - b.endMinutes);
       
-      // Update total lanes for all tasks in this group
-      allTasksInGroup.forEach(task => {
+      // Update totalLanes for all overlapping tasks
+      const totalLanes = activeTasks.length;
+      activeTasks.forEach(task => {
         task.totalLanes = Math.max(task.totalLanes, totalLanes);
       });
     }
@@ -1188,8 +1231,8 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
           <CardContent>
             <div
               ref={plannerRef}
-              className="relative"
-              style={{ height: '1440px' }} // 24 hours * 60px per hour
+              className="relative overflow-y-auto"
+              style={{ height: `${TIMELINE_HEIGHT}px` }} // 1440px = 24 hours * 60 minutes
               onDragOver={handleDragOver}
               onDrop={handleDrop}
             >
@@ -1231,13 +1274,15 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                   .map(task => {
                     const isSelected = selectedTask?.id === task.id;
                     
-                    // Calculate lane-based positioning
-                    const laneWidth = task.totalLanes > 1 ? (100 / task.totalLanes) : 100;
-                    const laneLeft = 5 + (task.lane * laneWidth); // 5rem base offset for hour labels
-                    const cardWidth = laneWidth - 1; // Small gap between lanes
+                    // Calculate unified positioning in pixels
+                    const topPx = timeToPositionPx(task.startTime);
+                    const durationMinutes = calculateDuration(task.startTime, task.endTime);
+                    const heightPx = Math.max(45, durationMinutes * MINUTE_PX); // Min 45px height
                     
-                    // Adjust for details panel when task is selected
-                    const adjustedWidth = selectedTask ? Math.min(cardWidth, 45) : cardWidth; // Max 45% when details panel open
+                    // Calculate lane-based horizontal positioning
+                    const colWidth = 100 / task.totalLanes;
+                    const leftPercent = task.lane * colWidth;
+                    const widthPercent = colWidth - 0.5; // Small gap between lanes
                     
                     return (
                     <div
@@ -1251,11 +1296,11 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                           : `${taskTypeColors[task.taskType]} ${task.completed ? 'opacity-70' : ''} z-10`
                       }`}
                       style={{
-                        top: `${timeToPosition(task.startTime)}%`,
-                        height: `${Math.max(60, (calculateDuration(task.startTime, task.endTime) / 60) * 60)}px`,
-                        minHeight: '60px',
-                        left: `${laneLeft}%`,
-                        width: `${adjustedWidth}%`,
+                        top: `${topPx}px`,
+                        height: `${heightPx}px`,
+                        left: `${leftPercent}%`,
+                        width: `calc(${widthPercent}% - 8px)`,
+                        marginLeft: '5rem', // Offset for hour labels
                       }}
                       data-testid={`task-card-${task.id}`}
                     >
