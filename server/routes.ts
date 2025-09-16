@@ -589,7 +589,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get prayer times for current user by date (simplified endpoint)
+  // Get prayer times for current user by date (unified endpoint with auto-fetch)
   app.get("/api/prayer-times/:date", async (req, res) => {
     try {
       const { date } = req.params;
@@ -598,16 +598,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
-      const prayerTimes = await storage.getPrayerTimesForUserAndDate?.(userId, date);
-      
-      if (!prayerTimes) {
-        return res.status(404).json({ 
-          message: "Prayer times not found for this date. Use /api/prayers/fetch to get them from Al-Adhan API" 
-        });
+
+      // Validate date format
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(date)) {
+        return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD" });
       }
       
-      res.json(prayerTimes);
+      // Check if prayer times are cached
+      let prayerTimes = await storage.getPrayerTimesForUserAndDate?.(userId, date);
+      
+      if (!prayerTimes) {
+        // Fetch user location and settings
+        const user = await storage.getUserById(userId);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        // Use default values if user location not set
+        const lat = parseFloat(user.locationLat || "40.7128"); // Default to NYC
+        const lon = parseFloat(user.locationLon || "-74.0060");
+        const method = user.prayerMethod || 2; // ISNA default
+        const madhab = user.madhab || 1; // Hanafi default
+
+        try {
+          // Fetch from Al-Adhan API
+          const aladhanPrayerTimes = await fetchPrayerTimes(lat, lon, method, madhab, date);
+          
+          // Cache the prayer times
+          const insertData = {
+            userId: userId,
+            date: date,
+            fajr: aladhanPrayerTimes.fajr,
+            sunrise: aladhanPrayerTimes.sunrise,
+            dhuhr: aladhanPrayerTimes.dhuhr,
+            asr: aladhanPrayerTimes.asr,
+            maghrib: aladhanPrayerTimes.maghrib,
+            isha: aladhanPrayerTimes.isha,
+            source: aladhanPrayerTimes.source,
+            prayerMethod: aladhanPrayerTimes.method,
+            madhab: aladhanPrayerTimes.madhab,
+            locationLat: aladhanPrayerTimes.locationLat,
+            locationLon: aladhanPrayerTimes.locationLon,
+          };
+          
+          prayerTimes = await storage.createPrayerTimes(insertData);
+        } catch (fetchError) {
+          console.error('Failed to fetch prayer times from Al-Adhan:', fetchError);
+          
+          // Return fallback prayer times instead of 404
+          const fallbackTimes = {
+            fajr: "05:30",
+            sunrise: "06:45", 
+            dhuhr: "12:15",
+            asr: "15:30",
+            maghrib: "18:45",
+            isha: "20:00",
+            date: date,
+            source: "fallback"
+          };
+          
+          return res.json(fallbackTimes);
+        }
+      }
+      
+      // Return consistent response format
+      const response = {
+        fajr: prayerTimes.fajr,
+        sunrise: prayerTimes.sunrise,
+        dhuhr: prayerTimes.dhuhr,
+        asr: prayerTimes.asr,
+        maghrib: prayerTimes.maghrib,
+        isha: prayerTimes.isha,
+        date: prayerTimes.date,
+        source: prayerTimes.source,
+        method: prayerTimes.prayerMethod,
+        madhab: prayerTimes.madhab,
+      };
+      
+      res.json(response);
       
     } catch (error) {
       console.error('Get prayer times by date error:', error);

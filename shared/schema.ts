@@ -452,6 +452,22 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   completedAt: true,
 });
 
+// Frontend Prayer Times API Response Schema
+export const prayerTimesResponseSchema = z.object({
+  fajr: z.string(),
+  sunrise: z.string(),
+  dhuhr: z.string(),
+  asr: z.string(),
+  maghrib: z.string(),
+  isha: z.string(),
+  date: z.string(),
+  source: z.string().optional(),
+  method: z.number().optional(),
+  madhab: z.number().optional(),
+});
+
+export type PrayerTimesResponse = z.infer<typeof prayerTimesResponseSchema>;
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;

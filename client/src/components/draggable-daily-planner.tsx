@@ -356,16 +356,19 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       repeatType: 'daily'
     });
 
-    // Pre-Fajr Sunnah
-    const preFajrTime = subtractMinutesFromTime(prayerTimes.fajr, 25);
-    const fajrSunnahEnd = subtractMinutesFromTime(prayerTimes.fajr, 5);
+    // Post-Fajr Sunnah (after fard, before sunrise)
+    const postFajrTime = fajrEndTime;
+    const postFajrSunnahEnd = addMinutesToTime(postFajrTime, 15);
+    // Ensure it doesn't go past sunrise
+    const sunriseLimit = subtractMinutesFromTime(prayerTimes.sunrise, 5);
+    const safeFajrSunnahEnd = postFajrSunnahEnd <= sunriseLimit ? postFajrSunnahEnd : sunriseLimit;
     tasks.push({
       id: (taskId++).toString(),
-      title: 'Sunnah Fajr',
-      description: '2 rak\'ahs sunnah muʾakkadah before Fajr',
-      startTime: preFajrTime,
-      endTime: fajrSunnahEnd,
-      duration: calculateDurationFromTimes(preFajrTime, fajrSunnahEnd),
+      title: 'Post-Fajr Sunnah',
+      description: '2 rak\'ahs sunnah muʾakkadah after Fajr',
+      startTime: postFajrTime,
+      endTime: safeFajrSunnahEnd,
+      duration: calculateDurationFromTimes(postFajrTime, safeFajrSunnahEnd),
       taskType: 'sunnah',
       category: 'prayer',
       completed: false,
@@ -435,16 +438,16 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       repeatType: 'daily'
     });
 
-    // Pre-Dhuhr Sunnah
-    const preDhuhrTime = subtractMinutesFromTime(prayerTimes.dhuhr, 25);
-    const dhuhrSunnahEnd = subtractMinutesFromTime(prayerTimes.dhuhr, 5);
+    // Additional Post-Dhuhr Sunnah (4 rak'ahs)
+    const additionalDhuhrTime = addMinutesToTime(dhuhrEndTime, 15);
+    const additionalDhuhrEnd = addMinutesToTime(additionalDhuhrTime, 20);
     tasks.push({
       id: (taskId++).toString(),
-      title: 'Pre-Dhuhr Sunnah',
-      description: '4 rak\'ahs sunnah mu\'akkadah before Dhuhr',
-      startTime: preDhuhrTime,
-      endTime: dhuhrSunnahEnd,
-      duration: calculateDurationFromTimes(preDhuhrTime, dhuhrSunnahEnd),
+      title: 'Additional Post-Dhuhr Sunnah',
+      description: '4 rak\'ahs sunnah mu\'akkadah after Dhuhr',
+      startTime: additionalDhuhrTime,
+      endTime: additionalDhuhrEnd,
+      duration: 20,
       taskType: 'sunnah',
       category: 'prayer',
       completed: false,
@@ -634,6 +637,57 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
     const end = new Date(`2000-01-01 ${endTime}`);
     const duration = (end.getTime() - start.getTime()) / (1000 * 60);
     return Math.max(15, duration); // Minimum 15 minutes
+  }, []);
+
+  // Lane-based collision detection for overlapping tasks
+  const calculateTaskLanes = useCallback((tasks: UITimeBlock[]) => {
+    const tasksWithLanes = tasks.map(task => ({ ...task, lane: 0, totalLanes: 1 }));
+    
+    // Sort tasks by start time for lane assignment
+    tasksWithLanes.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    
+    // Check if two tasks overlap
+    const tasksOverlap = (task1: UITimeBlock, task2: UITimeBlock) => {
+      const start1 = new Date(`2000-01-01 ${task1.startTime}`).getTime();
+      const end1 = new Date(`2000-01-01 ${task1.endTime}`).getTime();
+      const start2 = new Date(`2000-01-01 ${task2.startTime}`).getTime();
+      const end2 = new Date(`2000-01-01 ${task2.endTime}`).getTime();
+      
+      return start1 < end2 && start2 < end1;
+    };
+    
+    // Assign lanes using greedy algorithm
+    for (let i = 0; i < tasksWithLanes.length; i++) {
+      const currentTask = tasksWithLanes[i];
+      const overlappingTasks = [];
+      
+      // Find all overlapping tasks
+      for (let j = 0; j < tasksWithLanes.length; j++) {
+        if (i !== j && tasksOverlap(currentTask, tasksWithLanes[j])) {
+          overlappingTasks.push(tasksWithLanes[j]);
+        }
+      }
+      
+      // Find the smallest available lane
+      const usedLanes = new Set(overlappingTasks.map(task => task.lane));
+      let lane = 0;
+      while (usedLanes.has(lane)) {
+        lane++;
+      }
+      currentTask.lane = lane;
+      
+      // Calculate total lanes needed for this overlapping group
+      const allTasksInGroup = [currentTask, ...overlappingTasks];
+      const maxLane = Math.max(...allTasksInGroup.map(task => task.lane));
+      const totalLanes = maxLane + 1;
+      
+      // Update total lanes for all tasks in this group
+      allTasksInGroup.forEach(task => {
+        task.totalLanes = Math.max(task.totalLanes, totalLanes);
+      });
+    }
+    
+    return tasksWithLanes;
   }, []);
 
   const positionToTime = useCallback((position: number) => {
@@ -1161,35 +1215,50 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                 />
               ))}
 
-              {/* Task Cards - Sort to bring selected task to front */}
-              {tasks
-                .sort((a, b) => {
-                  // Selected task comes first (highest z-index via CSS)
-                  if (selectedTask?.id === a.id) return 1;
-                  if (selectedTask?.id === b.id) return -1;
-                  return a.startTime.localeCompare(b.startTime);
-                })
-                .map(task => {
-                  const isSelected = selectedTask?.id === task.id;
-                  return (
-                  <div
-                    key={task.id}
-                    draggable
-                    onDragStart={() => handleDragStart(task.id)}
-                    onClick={() => setSelectedTask(task)}
-                    className={`absolute left-20 rounded-lg border cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                      isSelected 
-                        ? `${taskTypeColors[task.taskType]} ring-4 ring-white/50 shadow-2xl z-50 scale-105` 
-                        : `${taskTypeColors[task.taskType]} ${task.completed ? 'opacity-70' : ''} z-10`
-                    }`}
-                    style={{
-                      top: `${timeToPosition(task.startTime)}%`,
-                      height: `${Math.max(60, (calculateDuration(task.startTime, task.endTime) / 60) * 60)}px`,
-                      minHeight: '60px',
-                      right: selectedTask ? '25rem' : '1rem', // Leave more space for details panel when selected
-                    }}
-                    data-testid={`task-card-${task.id}`}
-                  >
+              {/* Task Cards with collision detection */}
+              {(() => {
+                // Calculate lanes for collision detection
+                const tasksWithLanes = calculateTaskLanes(tasks);
+                
+                // Sort to bring selected task to front
+                return tasksWithLanes
+                  .sort((a, b) => {
+                    // Selected task comes first (highest z-index via CSS)
+                    if (selectedTask?.id === a.id) return 1;
+                    if (selectedTask?.id === b.id) return -1;
+                    return a.startTime.localeCompare(b.startTime);
+                  })
+                  .map(task => {
+                    const isSelected = selectedTask?.id === task.id;
+                    
+                    // Calculate lane-based positioning
+                    const laneWidth = task.totalLanes > 1 ? (100 / task.totalLanes) : 100;
+                    const laneLeft = 5 + (task.lane * laneWidth); // 5rem base offset for hour labels
+                    const cardWidth = laneWidth - 1; // Small gap between lanes
+                    
+                    // Adjust for details panel when task is selected
+                    const adjustedWidth = selectedTask ? Math.min(cardWidth, 45) : cardWidth; // Max 45% when details panel open
+                    
+                    return (
+                    <div
+                      key={task.id}
+                      draggable
+                      onDragStart={() => handleDragStart(task.id)}
+                      onClick={() => setSelectedTask(task)}
+                      className={`absolute rounded-lg border cursor-pointer hover:shadow-lg transition-all duration-200 ${
+                        isSelected 
+                          ? `${taskTypeColors[task.taskType]} ring-4 ring-white/50 shadow-2xl z-50 scale-105` 
+                          : `${taskTypeColors[task.taskType]} ${task.completed ? 'opacity-70' : ''} z-10`
+                      }`}
+                      style={{
+                        top: `${timeToPosition(task.startTime)}%`,
+                        height: `${Math.max(60, (calculateDuration(task.startTime, task.endTime) / 60) * 60)}px`,
+                        minHeight: '60px',
+                        left: `${laneLeft}%`,
+                        width: `${adjustedWidth}%`,
+                      }}
+                      data-testid={`task-card-${task.id}`}
+                    >
                     <div className="p-3 h-full flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -1226,8 +1295,9 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
                       </div>
                     </div>
                   </div>
-                  );
-                })}
+                    );
+                  });
+              })()}
 
               {/* Floating Task Details Panel */}
               {selectedTask && <TaskDetailsPanel task={selectedTask} />}
