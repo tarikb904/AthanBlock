@@ -482,32 +482,6 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
       completed: false,
       repeatType: 'daily'
     });
-    tasks.push({
-      id: (taskId++).toString(),
-      title: 'Dhuhr Prayer',
-      description: '4 rak\'ahs fard',
-      startTime: prayerTimes.dhuhr,
-      endTime: dhuhrEndTime,
-      duration: 15,
-      taskType: 'fard',
-      category: 'prayer',
-      completed: false,
-      repeatType: 'daily'
-    });
-
-    // Post-Dhuhr Sunnah
-    tasks.push({
-      id: (taskId++).toString(),
-      title: 'Post-Dhuhr Sunnah',
-      description: '2 rak\'ahs sunnah mu\'akkadah after Dhuhr',
-      startTime: dhuhrEndTime,
-      endTime: addMinutesToTime(dhuhrEndTime, 15),
-      duration: 15,
-      taskType: 'sunnah',
-      category: 'prayer',
-      completed: false,
-      repeatType: 'daily'
-    });
 
     // Asr Prayer (Fard)
     const asrEndTime = addMinutesToTime(prayerTimes.asr, 20);

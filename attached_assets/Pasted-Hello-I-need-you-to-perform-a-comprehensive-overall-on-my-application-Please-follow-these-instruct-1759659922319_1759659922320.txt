@@ -1,0 +1,33 @@
+Hello! I need you to perform a comprehensive overall on my application. Please follow these instructions carefully, addressing each section completely.
+
+1. Full App Audit & Code Review
+First, please conduct a full audit of the entire codebase and application structure. I need you to:
+
+Identify Bugs & Errors: Scan for any bugs, logical errors, runtime errors, or potential crashes. Pay close attention to asynchronous operations, state management, and data handling.
+
+Code Quality & Best Practices: Refactor the code to improve readability, maintainability, and performance. This includes standardizing formatting, removing redundant code, adding necessary comments, and ensuring adherence to best practices for the language and frameworks used.
+
+Dependency Check: Review all project dependencies. Identify any outdated, deprecated, or vulnerable packages and update them to stable, secure versions.
+
+2. Fix All Functionalities
+Based on your audit, please fix all broken functionalities. Your goal is to make every existing feature work exactly as intended. This includes:
+
+Ensuring all buttons, links, and forms are fully operational.
+
+Correcting any issues with data fetching, submission, and display.
+
+Fixing user authentication and authorization flows.
+
+Resolving any broken API integrations or backend communication problems.
+
+3. Enhance User Experience (UX) & User Interface (UI)
+After ensuring everything works, please improve the user experience. I want the app to be more intuitive, responsive, and visually appealing. Please:
+
+Improve Responsiveness: Make sure the application is fully responsive and provides a seamless experience on all device sizes (desktop, tablet, and mobile).
+
+Enhance Layout & Navigation: Suggest and implement improvements to the layout and navigation to make the app more user-friendly. Simplify complex user flows.
+
+Add UI Feedback: Implement clear user feedback mechanisms like loading spinners, success/error messages, and form validation notifications to improve interactivity.
+
+4. Implement New Powerful Features
+Finally, please add the following new features to make the app more powerful and useful. For each feature, please ensure it is fully integrated with the existing application, including any necessary backend and database modifications.
