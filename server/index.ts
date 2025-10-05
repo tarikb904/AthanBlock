@@ -37,22 +37,27 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Trust proxy for cookie handling in dev mode
+app.set('trust proxy', 1);
+
 // Session middleware with proper store
 app.use(session({
   store: new MemoryStore({
     checkPeriod: 86400000 // Prune expired entries every 24h
   }),
-  secret: process.env.SESSION_SECRET || 'dev-secret-key-change-in-production',
+  secret: process.env.SESSION_SECRET || 'imaanify-secret-key-change-in-production-2024',
   resave: false, // Don't save session if unmodified
-  saveUninitialized: false, // Don't create session until something stored
+  saveUninitialized: true, // Create session immediately for cookie to be set
+  rolling: true, // Reset expiry on every response
   cookie: {
     secure: false, // Disable HTTPS requirement in development
-    httpOnly: true, // Prevent client-side access to session cookie
+    httpOnly: false, // Allow client-side access for debugging
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax', // Lax for same-site requests
-    path: '/' // Explicit path
+    path: '/', // Explicit path
+    domain: undefined // Let browser determine domain
   },
-  name: 'connect.sid' // Standard session cookie name
+  name: 'imaanify.sid' // Custom session cookie name
 }));
 
 // Debug session middleware

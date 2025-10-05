@@ -47,6 +47,28 @@ function getCurrentUser(req: any) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Test endpoint to check cookie functionality
+  app.get("/api/test/cookie", (req, res) => {
+    console.log("=== COOKIE TEST ===");
+    console.log("Request cookies:", req.headers.cookie);
+    console.log("===================");
+    
+    // Manually set a test cookie
+    res.cookie('test-cookie', 'test-value-123', {
+      httpOnly: false,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 3600000,
+      path: '/'
+    });
+    
+    res.json({
+      message: 'Test cookie set',
+      cookiesReceived: req.headers.cookie || 'none',
+      timestamp: new Date().toISOString()
+    });
+  });
+  
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
