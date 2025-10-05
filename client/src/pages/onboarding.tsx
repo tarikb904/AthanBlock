@@ -1,6 +1,7 @@
 import { Onboarding } from "@/components/onboarding";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function OnboardingPage() {
   const [, navigate] = useLocation();
@@ -17,62 +18,37 @@ export default function OnboardingPage() {
   }) => {
     try {
       // Create or update user profile and mark onboarding as completed
-      const response = await fetch('/api/user/profile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // CRITICAL: Include session cookies
-        body: JSON.stringify({
-          name: userData.name,
-          location: userData.location,
-          locationLat: userData.locationLat,
-          locationLon: userData.locationLon,
-          timezone: userData.timezone,
-          prayerMethod: parseInt(userData.prayerMethod),
-          madhab: parseInt(userData.madhab),
-          onboardingCompleted: true, // Mark onboarding as completed
-        }),
+      await apiRequest('POST', '/api/user/profile', {
+        name: userData.name,
+        location: userData.location,
+        locationLat: userData.locationLat,
+        locationLon: userData.locationLon,
+        timezone: userData.timezone,
+        prayerMethod: parseInt(userData.prayerMethod),
+        madhab: parseInt(userData.madhab),
+        onboardingCompleted: true, // Mark onboarding as completed
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to save profile');
-      }
 
       // Generate comprehensive prayer schedule for today
       if (userData.locationLat && userData.locationLon) {
         const today = new Date().toISOString().split('T')[0];
         
         // Generate comprehensive daily prayers (fard, sunnah, nafl, witr)
-        await fetch(`/api/prayers/${today}/comprehensive`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // Include session cookies
-          body: JSON.stringify({
-            lat: parseFloat(userData.locationLat),
-            lon: parseFloat(userData.locationLon),
-            method: parseInt(userData.prayerMethod),
-            madhab: parseInt(userData.madhab),
-          }),
+        await apiRequest('POST', `/api/prayers/${today}/comprehensive`, {
+          lat: parseFloat(userData.locationLat),
+          lon: parseFloat(userData.locationLon),
+          method: parseInt(userData.prayerMethod),
+          madhab: parseInt(userData.madhab),
         });
 
         // Also fetch prayer times for the week
-        await fetch('/api/prayers/fetch', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // Include session cookies
-          body: JSON.stringify({
-            lat: parseFloat(userData.locationLat),
-            lon: parseFloat(userData.locationLon),
-            method: parseInt(userData.prayerMethod),
-            madhab: parseInt(userData.madhab),
-            start_date: today,
-            days: 7,
-          }),
+        await apiRequest('POST', '/api/prayers/fetch', {
+          lat: parseFloat(userData.locationLat),
+          lon: parseFloat(userData.locationLon),
+          method: parseInt(userData.prayerMethod),
+          madhab: parseInt(userData.madhab),
+          start_date: today,
+          days: 7,
         });
       }
 

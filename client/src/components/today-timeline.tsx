@@ -115,22 +115,12 @@ export function TodayTimeline({ selectedDate }: TodayTimelineProps) {
 
   // Fetch prayers for today
   const { data: prayers = [], isLoading: prayersLoading } = useQuery({
-    queryKey: ['/api/prayers', today],
-    queryFn: async () => {
-      const response = await fetch(`/api/prayers?date=${today}`);
-      if (!response.ok) throw new Error('Failed to fetch prayers');
-      return response.json();
-    },
+    queryKey: [`/api/prayers?date=${today}`],
   });
 
   // Fetch time blocks for today
   const { data: timeBlocks = [], isLoading: blocksLoading } = useQuery({
-    queryKey: ['/api/time-blocks', today],
-    queryFn: async () => {
-      const response = await fetch(`/api/time-blocks?date=${today}`);
-      if (!response.ok) throw new Error('Failed to fetch time blocks');
-      return response.json();
-    },
+    queryKey: [`/api/time-blocks?date=${today}`],
   });
 
   // Toggle prayer completion
@@ -139,7 +129,7 @@ export function TodayTimeline({ selectedDate }: TodayTimelineProps) {
       return apiRequest('PATCH', `/api/prayers/${id}`, { completed });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/prayers', today] });
+      queryClient.invalidateQueries({ queryKey: [`/api/prayers?date=${today}`] });
       toast({
         title: "Prayer updated",
         description: "Prayer status has been updated.",
@@ -160,7 +150,7 @@ export function TodayTimeline({ selectedDate }: TodayTimelineProps) {
       return apiRequest('PATCH', `/api/time-blocks/${id}`, { completed });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/time-blocks', today] });
+      queryClient.invalidateQueries({ queryKey: [`/api/time-blocks?date=${today}`] });
       toast({
         title: "Task updated",
         description: "Task status has been updated.",
