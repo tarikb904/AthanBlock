@@ -1,27 +1,27 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import createMemoryStore from "memorystore";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+const MemoryStore = createMemoryStore(session);
 
 // CORS configuration to allow credentials (cookies)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const host = req.headers.host;
   
-  // For Replit preview environment, allow same-origin requests
-  if (!origin && host) {
-    // Direct access from same origin (Replit preview)
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Credentials', 'false');
+  // In development with Vite, requests come from the same server
+  // Allow credentials for all requests in development
+  if (process.env.NODE_ENV === 'development') {
+    // Same-origin requests don't need CORS headers
+    if (origin) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    }
   } else if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('.replit.dev'))) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
-  } else {
-    // Fallback
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Credentials', 'false');
   }
   
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -37,20 +37,22 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Session middleware
+// Session middleware with proper store
 app.use(session({
+  store: new MemoryStore({
+    checkPeriod: 86400000 // Prune expired entries every 24h
+  }),
   secret: process.env.SESSION_SECRET || 'dev-secret-key-change-in-production',
-  resave: false,
-  saveUninitialized: false,
+  resave: false, // Don't save session if unmodified
+  saveUninitialized: false, // Don't create session until something stored
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // Enable HTTPS-only in production
+    secure: false, // Disable HTTPS requirement in development
     httpOnly: true, // Prevent client-side access to session cookie
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: process.env.NODE_ENV === 'development' ? 'lax' : 'none', // Use lax for Replit preview
-    path: '/', // Explicit path
-    domain: undefined // Let browser set domain automatically
+    sameSite: 'lax', // Lax for same-site requests
+    path: '/' // Explicit path
   },
-  name: 'sessionId' // Use a simpler name for debugging
+  name: 'connect.sid' // Standard session cookie name
 }));
 
 // Debug session middleware

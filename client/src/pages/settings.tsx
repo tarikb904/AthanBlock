@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { LocationPicker } from "@/components/location-picker";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/components/theme-provider";
 import { apiRequest } from "@/lib/queryClient";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, MapPin, Globe, Bell, Download, Calendar, Apple } from "lucide-react";
 
 export default function Settings() {
@@ -29,13 +30,34 @@ export default function Settings() {
     name: profile?.name || "",
     email: profile?.email || "",
     location: profile?.location || "",
-    timezone: profile?.timezone || "",
+    locationLat: profile?.locationLat || "",
+    locationLon: profile?.locationLon || "",
+    timezone: profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     prayerMethod: profile?.prayerMethod || "ISNA",
     madhab: profile?.madhab || "Hanafi",
     language: profile?.language || "en",
     darkMode: profile?.darkMode ?? true,
     notifications: profile?.notifications ?? true,
   });
+
+  // Update form data when profile loads
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        name: profile.name || "",
+        email: profile.email || "",
+        location: profile.location || "",
+        locationLat: profile.locationLat || "",
+        locationLon: profile.locationLon || "",
+        timezone: profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        prayerMethod: profile.prayerMethod || "ISNA",
+        madhab: profile.madhab || "Hanafi",
+        language: profile.language || "en",
+        darkMode: profile.darkMode ?? true,
+        notifications: profile.notifications ?? true,
+      });
+    }
+  }, [profile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (updates: any) => {
@@ -62,27 +84,87 @@ export default function Settings() {
     updateProfileMutation.mutate(formData);
   };
 
-  const handleLocationDetect = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          // In a real app, you'd reverse geocode these coordinates
-          setFormData(prev => ({ ...prev, location: `${latitude.toFixed(2)}, ${longitude.toFixed(2)}` }));
-          toast({
-            title: "Location detected",
-            description: "Your location has been updated.",
-          });
-        },
-        () => {
-          toast({
-            title: "Location access denied",
-            description: "Please enter your location manually.",
-            variant: "destructive",
-          });
-        }
+  // Detect timezone from coordinates using GeoNames API (free, no key required)
+  const detectTimezone = async (lat: string, lon: string) => {
+    try {
+      // Use GeoNames API for timezone detection (free service)
+      const response = await fetch(
+        `https://secure.geonames.org/timezoneJSON?lat=${lat}&lng=${lon}&username=demo`
       );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.timezoneId) {
+          return data.timezoneId;
+        }
+      }
+    } catch (error) {
+      console.error('Timezone detection error:', error);
     }
+    
+    // Fallback: compute approximate timezone from longitude
+    // Longitude roughly corresponds to 15 degrees per hour offset from UTC
+    const lonFloat = parseFloat(lon);
+    if (!isNaN(lonFloat)) {
+      const utcOffset = Math.round(lonFloat / 15);
+      const offsetHours = Math.abs(utcOffset);
+      const sign = utcOffset >= 0 ? '+' : '-';
+      
+      // Return IANA timezone ID based on offset (approximate)
+      const timezoneMap: Record<string, string> = {
+        '-12': 'Pacific/Wake',
+        '-11': 'Pacific/Midway',
+        '-10': 'Pacific/Honolulu',
+        '-9': 'America/Anchorage',
+        '-8': 'America/Los_Angeles',
+        '-7': 'America/Denver',
+        '-6': 'America/Chicago',
+        '-5': 'America/New_York',
+        '-4': 'America/Halifax',
+        '-3': 'America/Argentina/Buenos_Aires',
+        '-2': 'Atlantic/South_Georgia',
+        '-1': 'Atlantic/Azores',
+        '0': 'Europe/London',
+        '+1': 'Europe/Paris',
+        '+2': 'Europe/Athens',
+        '+3': 'Asia/Riyadh',
+        '+4': 'Asia/Dubai',
+        '+5': 'Asia/Karachi',
+        '+6': 'Asia/Dhaka',
+        '+7': 'Asia/Bangkok',
+        '+8': 'Asia/Singapore',
+        '+9': 'Asia/Tokyo',
+        '+10': 'Australia/Sydney',
+        '+11': 'Pacific/Guadalcanal',
+        '+12': 'Pacific/Auckland'
+      };
+      
+      const timezoneKey = `${sign}${offsetHours}`;
+      if (timezoneMap[timezoneKey]) {
+        return timezoneMap[timezoneKey];
+      }
+    }
+    
+    // Final fallback to browser's timezone
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  };
+
+  const handleLocationSelect = async (location: { name: string; lat: string; lon: string }) => {
+    // Detect timezone from coordinates
+    const timezone = await detectTimezone(location.lat, location.lon);
+    
+    setFormData(prev => ({
+      ...prev,
+      location: location.name,
+      locationLat: location.lat,
+      locationLon: location.lon,
+      timezone: timezone
+    }));
+    
+    toast({
+      title: "Location updated",
+      description: `Set to ${location.name} (${timezone})`,
+    });
   };
 
   const exportToCalendar = (type: string) => {
@@ -159,39 +241,30 @@ export default function Settings() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        id="location"
-                        value={formData.location}
-                        onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                        placeholder="New York, NY"
-                        data-testid="input-location"
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleLocationDetect}
-                        data-testid="button-detect-location"
-                      >
-                        <MapPin className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <Label>Location</Label>
+                    <LocationPicker
+                      onLocationSelect={handleLocationSelect}
+                      currentLocation={formData.location}
+                    />
+                    {formData.location && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Current: {formData.location}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="timezone">Timezone</Label>
-                    <Select value={formData.timezone} onValueChange={(value) => setFormData(prev => ({ ...prev, timezone: value }))}>
-                      <SelectTrigger data-testid="select-timezone">
-                        <SelectValue placeholder="Select timezone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="America/New_York">Eastern Time (UTC-5)</SelectItem>
-                        <SelectItem value="America/Chicago">Central Time (UTC-6)</SelectItem>
-                        <SelectItem value="America/Denver">Mountain Time (UTC-7)</SelectItem>
-                        <SelectItem value="America/Los_Angeles">Pacific Time (UTC-8)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      id="timezone"
+                      value={formData.timezone}
+                      readOnly
+                      className="bg-muted"
+                      data-testid="input-timezone"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Automatically detected from your location
+                    </p>
                   </div>
 
                   <Button 
