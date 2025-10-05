@@ -27,22 +27,31 @@ import {
 } from "./services/aladhan";
 import { generateComprehensivePrayerSchedule, type ComprehensivePrayer } from "./services/comprehensive-prayers";
 
-// Authentication middleware to get current user from session  
-function getCurrentUser(req: any) {
-  // Return actual user ID from session, or null if not logged in
-  if (!req.session) {
-    console.log('No session found');
+// Authentication middleware to get current user from token
+async function getCurrentUser(req: any) {
+  // Check for Authorization header
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('No Authorization header found');
     return null;
   }
   
-  const userId = req.session.userId;
-  if (!userId) {
-    console.log('No userId in session:', req.session.id);
+  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  
+  // Find user by token
+  try {
+    const user = await storage.getUserByToken(token);
+    if (!user) {
+      console.log('Invalid token');
+      return null;
+    }
+    console.log('Found user from token:', user.id);
+    return user.id;
+  } catch (error) {
+    console.error('Error validating token:', error);
     return null;
   }
-  
-  console.log('Found userId in session:', userId);
-  return userId;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -95,25 +104,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      const user = await storage.createUser(validatedData);
+      // Generate authentication token
+      const authToken = `${Buffer.from(email).toString('base64')}.${Date.now()}.${Math.random().toString(36).substring(7)}`;
       
-      // Set user session directly without regenerating
-      (req as any).session.userId = user.id;
+      const user = await storage.createUser({
+        ...validatedData,
+        authToken
+      });
       
-      console.log('Setting registration session userId to:', user.id);
-      console.log('Session ID:', (req as any).session.id);
-      console.log('Registration session before save:', (req as any).session);
-      
-      // Save session explicitly
-      (req as any).session.save((saveErr: any) => {
-        if (saveErr) {
-          console.error('Session save error:', saveErr);
-          return res.status(500).json({ message: "Session save failed" });
-        }
-        console.log('Registration session saved for user:', user.id);
-        console.log('Registration session after save:', (req as any).session);
-        console.log('Session cookie will be set with ID:', (req as any).session.id);
-        res.json({ user: { id: user.id, email: user.email, name: user.name, onboardingCompleted: user.onboardingCompleted } });
+      console.log('Registration successful for user:', user.id);
+      res.json({ 
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          name: user.name, 
+          onboardingCompleted: user.onboardingCompleted 
+        },
+        token: authToken
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -140,23 +147,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Set user session directly without regenerating
-      (req as any).session.userId = user.id;
+      // Generate new authentication token
+      const authToken = `${Buffer.from(email).toString('base64')}.${Date.now()}.${Math.random().toString(36).substring(7)}`;
       
-      console.log('Setting session userId to:', user.id);
-      console.log('Session ID:', (req as any).session.id);
-      console.log('Session before save:', (req as any).session);
+      // Update user with new token
+      const updatedUser = await storage.updateUser(user.id, { authToken });
       
-      // Save session explicitly
-      (req as any).session.save((saveErr: any) => {
-        if (saveErr) {
-          console.error('Session save error:', saveErr);
-          return res.status(500).json({ message: "Session save failed" });
-        }
-        console.log("Login successful for user:", user.id);
-        console.log('Session after save:', (req as any).session);
-        console.log('Session cookie will be set with ID:', (req as any).session.id);
-        res.json({ user: { id: user.id, email: user.email, name: user.name, onboardingCompleted: user.onboardingCompleted } });
+      console.log("Login successful for user:", user.id);
+      res.json({ 
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          name: user.name, 
+          onboardingCompleted: user.onboardingCompleted 
+        },
+        token: authToken
       });
     } catch (error) {
       console.error("Login error:", error);

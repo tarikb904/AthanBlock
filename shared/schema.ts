@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   password: text("password"),
   name: varchar("name", { length: 255 }),
+  authToken: text("auth_token"), // Token for authentication
   location: varchar("location", { length: 255 }),
   locationLat: text("location_lat"), // decimal latitude
   locationLon: text("location_lon"), // decimal longitude

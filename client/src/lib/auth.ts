@@ -44,12 +44,12 @@ export function useAuth(): AuthState & {
     },
     onSuccess: async (data) => {
       console.log('Login successful, setting user data:', data.user);
+      // Store auth token
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+      }
       queryClient.setQueryData(["/api/user/profile"], data.user);
-      
-      // Force a longer wait for session cookie to be set properly
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
-      }, 500);
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
     },
   });
 
@@ -60,12 +60,12 @@ export function useAuth(): AuthState & {
     },
     onSuccess: async (data) => {
       console.log('Registration successful, setting user data:', data.user);
+      // Store auth token
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+      }
       queryClient.setQueryData(["/api/user/profile"], data.user);
-      
-      // Force a longer wait for session cookie to be set properly
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
-      }, 500);
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
     },
   });
 
@@ -88,9 +88,10 @@ export function useAuth(): AuthState & {
   };
 
   const logout = () => {
+    // Clear auth token from localStorage
+    localStorage.removeItem('auth_token');
     queryClient.clear();
     queryClient.setQueryData(["/api/user/profile"], null);
-    // In a real app, you'd also clear any auth tokens
   };
 
   const updateProfile = async (updates: Partial<User>) => {

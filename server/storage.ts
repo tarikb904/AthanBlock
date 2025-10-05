@@ -152,6 +152,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find(user => user.email === email);
   }
 
+  async getUserByToken(token: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.authToken === token);
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
     const user: User = {
@@ -748,6 +752,7 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
 
@@ -932,6 +937,17 @@ export class DrizzleStorage implements IStorage {
     } catch (error) {
       console.error('Database error, falling back to memory:', error);
       return this.memoryFallback.getUserByEmail(email);
+    }
+  }
+
+  async getUserByToken(token: string): Promise<User | undefined> {
+    if (!db) return this.memoryFallback.getUserByToken(token);
+    try {
+      const result = await db.select().from(users).where(eq(users.authToken, token)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Database error, falling back to memory:', error);
+      return this.memoryFallback.getUserByToken(token);
     }
   }
 

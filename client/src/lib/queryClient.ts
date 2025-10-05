@@ -12,12 +12,19 @@ export async function apiRequest(
   endpoint: string,
   data?: any
 ): Promise<Response> {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  // Add auth token if available
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const config: RequestInit = {
     method,
-    credentials: 'include', // Include cookies/session
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
   };
 
   if (data) {
@@ -40,8 +47,16 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    const headers: HeadersInit = {};
+    
+    // Add auth token if available
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const res = await fetch(queryKey.join("/") as string, {
-      credentials: "include",
+      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
