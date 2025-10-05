@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Clock, Settings, Check, Edit3, Calendar, X, ChevronRight } from "lucide-react";
+import { Plus, Clock, Settings, Check, Edit3, Calendar, X, ChevronRight, ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -311,6 +311,7 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
   const [selectedTask, setSelectedTask] = useState<UITimeBlock | null>(null);
   const [editingTask, setEditingTask] = useState<UITimeBlock | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const plannerRef = useRef<HTMLDivElement>(null);
 
   // Fetch prayer times from API
@@ -1173,11 +1174,21 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold text-foreground font-serif">Daily Islamic Planner</h2>
-            <p className="text-muted-foreground">
-              Structure your day around Islamic principles • {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
-              {prayerTimesLoading && " • Loading prayer times..."}
-              {prayerTimesData && " • Prayer times integrated"}
-            </p>
+            <div className="flex items-center gap-3 mt-2">
+              <p className="text-muted-foreground">
+                Structure your day around Islamic principles
+              </p>
+              {prayerTimesLoading && (
+                <Badge variant="outline" className="animate-pulse">
+                  Loading prayer times...
+                </Badge>
+              )}
+              {prayerTimesData && (
+                <Badge variant="secondary">
+                  Prayer times integrated
+                </Badge>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -1190,6 +1201,119 @@ export function DraggableDailyPlanner({ selectedDate }: DraggableDailyPlannerPro
             </Button>
           </div>
         </div>
+
+        {/* View Switcher & Date Navigation */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-4">
+              {/* View Mode Tabs */}
+              <div className="flex items-center justify-between">
+                <div className="flex gap-1 bg-muted p-1 rounded-lg">
+                  <Button
+                    variant={viewMode === 'daily' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('daily')}
+                    data-testid="button-view-daily"
+                    className="px-4"
+                  >
+                    Day
+                  </Button>
+                  <Button
+                    variant={viewMode === 'weekly' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('weekly')}
+                    data-testid="button-view-weekly"
+                    className="px-4"
+                  >
+                    Week
+                  </Button>
+                  <Button
+                    variant={viewMode === 'monthly' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('monthly')}
+                    data-testid="button-view-monthly"
+                    className="px-4"
+                  >
+                    Month
+                  </Button>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const today = new Date().toISOString().split('T')[0];
+                    setSelectedDate(today);
+                  }}
+                  disabled={selectedDate === new Date().toISOString().split('T')[0]}
+                  data-testid="button-today"
+                >
+                  <Clock className="w-4 h-4 mr-1" />
+                  Today
+                </Button>
+              </div>
+
+              {/* Date Navigation */}
+              <div className="flex items-center justify-between gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const currentDate = new Date(selectedDate);
+                    if (viewMode === 'monthly') {
+                      currentDate.setMonth(currentDate.getMonth() - 1);
+                    } else if (viewMode === 'weekly') {
+                      currentDate.setDate(currentDate.getDate() - 7);
+                    } else {
+                      currentDate.setDate(currentDate.getDate() - 1);
+                    }
+                    setSelectedDate(currentDate.toISOString().split('T')[0]);
+                  }}
+                  data-testid="button-previous-period"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous {viewMode === 'monthly' ? 'Month' : viewMode === 'weekly' ? 'Week' : 'Day'}
+                </Button>
+                
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-muted-foreground" />
+                  <div className="text-center">
+                    <div className="text-lg font-semibold">
+                      {viewMode === 'monthly' 
+                        ? format(new Date(selectedDate), 'MMMM yyyy')
+                        : format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')
+                      }
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {viewMode === 'weekly' && `Week ${Math.ceil(new Date(selectedDate).getDate() / 7)}`}
+                      {viewMode === 'daily' && format(new Date(selectedDate), 'yyyy-MM-dd')}
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const currentDate = new Date(selectedDate);
+                    if (viewMode === 'monthly') {
+                      currentDate.setMonth(currentDate.getMonth() + 1);
+                    } else if (viewMode === 'weekly') {
+                      currentDate.setDate(currentDate.getDate() + 7);
+                    } else {
+                      currentDate.setDate(currentDate.getDate() + 1);
+                    }
+                    setSelectedDate(currentDate.toISOString().split('T')[0]);
+                  }}
+                  data-testid="button-next-period"
+                >
+                  Next {viewMode === 'monthly' ? 'Month' : viewMode === 'weekly' ? 'Week' : 'Day'}
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Daily Planner */}
         <Card className="flex-1">
