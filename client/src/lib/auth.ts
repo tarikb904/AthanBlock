@@ -42,28 +42,12 @@ export function useAuth(): AuthState & {
       const response = await apiRequest("POST", "/api/auth/login", { email, password });
       return response.json();
     },
-    onSuccess: async (data) => {
-      // Store auth token
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token);
-      }
-      queryClient.setQueryData(["/api/user/profile"], data.user);
-      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
-    },
   });
 
   const registerMutation = useMutation({
     mutationFn: async ({ email, password, name }: { email: string; password: string; name: string }) => {
       const response = await apiRequest("POST", "/api/auth/register", { email, password, name });
       return response.json();
-    },
-    onSuccess: async (data) => {
-      // Store auth token
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token);
-      }
-      queryClient.setQueryData(["/api/user/profile"], data.user);
-      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
     },
   });
 
@@ -78,11 +62,29 @@ export function useAuth(): AuthState & {
   });
 
   const login = async (email: string, password: string) => {
-    await loginMutation.mutateAsync({ email, password });
+    const data = await loginMutation.mutateAsync({ email, password });
+    
+    // Store auth token synchronously BEFORE any other operations
+    if (data.token) {
+      localStorage.setItem('auth_token', data.token);
+    }
+    
+    // Update query cache
+    queryClient.setQueryData(["/api/user/profile"], data.user);
+    queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
   };
 
   const register = async (email: string, password: string, name: string) => {
-    await registerMutation.mutateAsync({ email, password, name });
+    const data = await registerMutation.mutateAsync({ email, password, name });
+    
+    // Store auth token synchronously BEFORE any other operations
+    if (data.token) {
+      localStorage.setItem('auth_token', data.token);
+    }
+    
+    // Update query cache
+    queryClient.setQueryData(["/api/user/profile"], data.user);
+    queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
   };
 
   const logout = () => {
