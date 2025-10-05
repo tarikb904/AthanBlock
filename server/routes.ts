@@ -172,7 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User profile routes
   app.get("/api/user/profile", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -188,7 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/user/profile", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -205,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/user/profile", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -223,7 +223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Prayer routes
   app.get("/api/prayers", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -237,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/prayers/:date/generate", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -263,7 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate comprehensive prayer schedule (includes sunnah, nafl, witr)
   app.post("/api/prayers/:date/comprehensive", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -385,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Time block routes
   app.get("/api/time-blocks/:date", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       const { date } = req.params;
       const timeBlocks = await storage.getTimeBlocksForUserAndDate(userId, date);
       res.json(timeBlocks);
@@ -405,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/time-blocks/:date/copy-template", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       const { date } = req.params;
       const timeBlocks = await storage.copyTemplateToDate(userId, date);
       res.json(timeBlocks);
@@ -416,7 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/time-blocks", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       const timeBlockData = insertTimeBlockSchema.parse({
         ...req.body,
         userId
@@ -445,7 +445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reminder routes
   app.get("/api/reminders", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -458,7 +458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/reminders", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       const reminderData = insertReminderSchema.parse({
         ...req.body,
         userId
@@ -489,7 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Fetch prayer times from Al-Adhan API and store them
   app.post("/api/prayers/fetch", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       const { lat, lon, method, madhab, start_date, days = 7 } = req.body;
       
       // Validate input
@@ -609,7 +609,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/prayer-times/:date", async (req, res) => {
     try {
       const { date } = req.params;
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
@@ -727,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Projects API - Islamic Project Hierarchy
   app.get("/api/projects", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -742,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/projects", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -758,7 +758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/projects/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -776,7 +776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/projects/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -792,7 +792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Smart Labels API
   app.get("/api/labels", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -807,7 +807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/labels", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -823,7 +823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/labels/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -841,7 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/labels/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -857,7 +857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Advanced Tasks API with Islamic Features
   app.get("/api/tasks", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -884,7 +884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tasks", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -900,7 +900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/tasks/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -918,7 +918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/tasks/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -934,7 +934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Task Templates API - Islamic Routines
   app.get("/api/templates", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -959,7 +959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/templates", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -975,7 +975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/templates/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -993,7 +993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/templates/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1009,7 +1009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Collaboration API - Family & Team Sharing
   app.get("/api/collaborations", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1024,7 +1024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/collaborations", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1040,7 +1040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/collaborations/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1059,7 +1059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Activity Feed API
   app.get("/api/activity", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1075,7 +1075,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Saved Filters API - Custom Views
   app.get("/api/filters", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1090,7 +1090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/filters", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1106,7 +1106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/filters/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1124,7 +1124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/filters/:id", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1140,7 +1140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Islamic Context API - Get all Islamic data
   app.get("/api/islamic/context", async (req, res) => {
     try {
-      const userId = getCurrentUser(req);
+      const userId = await getCurrentUser(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
