@@ -33,7 +33,6 @@ async function getCurrentUser(req: any) {
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('No Authorization header found');
     return null;
   }
   
@@ -43,10 +42,8 @@ async function getCurrentUser(req: any) {
   try {
     const user = await storage.getUserByToken(token);
     if (!user) {
-      console.log('Invalid token');
       return null;
     }
-    console.log('Found user from token:', user.id);
     return user.id;
   } catch (error) {
     console.error('Error validating token:', error);

@@ -43,7 +43,6 @@ export function useAuth(): AuthState & {
       return response.json();
     },
     onSuccess: async (data) => {
-      console.log('Login successful, setting user data:', data.user);
       // Store auth token
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
@@ -59,7 +58,6 @@ export function useAuth(): AuthState & {
       return response.json();
     },
     onSuccess: async (data) => {
-      console.log('Registration successful, setting user data:', data.user);
       // Store auth token
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
@@ -110,15 +108,15 @@ export function useAuth(): AuthState & {
 }
 
 export function getStoredToken(): string | null {
-  return localStorage.getItem("auth-token");
+  return localStorage.getItem("auth_token");
 }
 
 export function setStoredToken(token: string): void {
-  localStorage.setItem("auth-token", token);
+  localStorage.setItem("auth_token", token);
 }
 
 export function clearStoredToken(): void {
-  localStorage.removeItem("auth-token");
+  localStorage.removeItem("auth_token");
 }
 
 export function initializeAuth(): void {
