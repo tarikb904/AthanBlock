@@ -163,6 +163,7 @@ export class MemStorage implements IStorage {
       name: insertUser.name || null,
       email: insertUser.email,
       password: insertUser.password || null,
+      authToken: insertUser.authToken || null,
       location: insertUser.location || null,
       locationLat: insertUser.locationLat || null,
       locationLon: insertUser.locationLon || null,
@@ -277,7 +278,19 @@ export class MemStorage implements IStorage {
 
   async createAdhkar(insertAdhkar: InsertAdhkar): Promise<Adhkar> {
     const id = randomUUID();
-    const adhkar: Adhkar = { ...insertAdhkar, id, createdAt: new Date() };
+    const adhkar: Adhkar = {
+      id,
+      titleEn: insertAdhkar.titleEn,
+      titleAr: insertAdhkar.titleAr || null,
+      textAr: insertAdhkar.textAr,
+      textEn: insertAdhkar.textEn,
+      transliteration: insertAdhkar.transliteration || null,
+      category: insertAdhkar.category,
+      repetitions: insertAdhkar.repetitions || null,
+      audioUrl: insertAdhkar.audioUrl || null,
+      published: insertAdhkar.published ?? null,
+      createdAt: new Date()
+    };
     this.adhkarList.set(id, adhkar);
     return adhkar;
   }
@@ -307,7 +320,22 @@ export class MemStorage implements IStorage {
 
   async createTimeBlock(insertTimeBlock: InsertTimeBlock): Promise<TimeBlock> {
     const id = randomUUID();
-    const timeBlock: TimeBlock = { ...insertTimeBlock, id, createdAt: new Date() };
+    const timeBlock: TimeBlock = {
+      id,
+      userId: insertTimeBlock.userId,
+      title: insertTimeBlock.title,
+      description: insertTimeBlock.description || null,
+      startTime: insertTimeBlock.startTime,
+      duration: insertTimeBlock.duration,
+      category: insertTimeBlock.category,
+      icon: insertTimeBlock.icon || null,
+      color: insertTimeBlock.color || null,
+      isTemplate: insertTimeBlock.isTemplate || null,
+      completed: insertTimeBlock.completed || null,
+      date: insertTimeBlock.date || null,
+      tasks: insertTimeBlock.tasks || [],
+      createdAt: new Date()
+    };
     this.timeBlocksList.set(id, timeBlock);
     return timeBlock;
   }
@@ -329,11 +357,18 @@ export class MemStorage implements IStorage {
     const copiedBlocks: TimeBlock[] = [];
     for (const template of templates) {
       const newBlock = await this.createTimeBlock({
-        ...template,
         userId,
+        title: template.title,
+        description: template.description,
+        startTime: template.startTime,
+        duration: template.duration,
+        category: template.category,
+        icon: template.icon,
+        color: template.color,
         date,
         isTemplate: false,
-        completed: false
+        completed: false,
+        tasks: (template.tasks || []) as any
       });
       copiedBlocks.push(newBlock);
     }
@@ -349,7 +384,16 @@ export class MemStorage implements IStorage {
 
   async createReminder(insertReminder: InsertReminder): Promise<Reminder> {
     const id = randomUUID();
-    const reminder: Reminder = { ...insertReminder, id, createdAt: new Date() };
+    const reminder: Reminder = {
+      id,
+      userId: insertReminder.userId,
+      type: insertReminder.type,
+      title: insertReminder.title,
+      time: insertReminder.time,
+      enabled: insertReminder.enabled ?? null,
+      recurring: insertReminder.recurring || null,
+      createdAt: new Date()
+    };
     this.remindersList.set(id, reminder);
     return reminder;
   }
@@ -542,7 +586,15 @@ export class MemStorage implements IStorage {
 
   async createLabel(insertLabel: InsertLabel): Promise<Label> {
     const id = randomUUID();
-    const label: Label = { ...insertLabel, id, createdAt: new Date(), usageCount: 0 };
+    const label: Label = {
+      id,
+      userId: insertLabel.userId,
+      name: insertLabel.name,
+      color: insertLabel.color,
+      isSystemLabel: insertLabel.isSystemLabel ?? null,
+      usageCount: 0,
+      createdAt: new Date()
+    };
     this.labelsList.set(id, label);
     return label;
   }
@@ -654,12 +706,20 @@ export class MemStorage implements IStorage {
 
   async createTaskTemplate(insertTemplate: InsertTaskTemplate): Promise<TaskTemplate> {
     const id = randomUUID();
-    const template: TaskTemplate = { 
-      ...insertTemplate, 
-      id, 
-      createdAt: new Date(),
+    const template: TaskTemplate = {
+      id,
+      createdBy: insertTemplate.createdBy,
+      name: insertTemplate.name,
+      description: insertTemplate.description || null,
+      category: insertTemplate.category,
+      islamicCategory: insertTemplate.islamicCategory || null,
+      tasks: insertTemplate.tasks,
+      isPublic: insertTemplate.isPublic ?? null,
+      isSystemTemplate: insertTemplate.isSystemTemplate ?? null,
       usageCount: 0,
-      rating: 0
+      rating: 0,
+      tags: insertTemplate.tags || [],
+      createdAt: new Date()
     };
     this.taskTemplatesList.set(id, template);
     return template;
@@ -686,10 +746,17 @@ export class MemStorage implements IStorage {
 
   async createCollaboration(insertCollaboration: InsertCollaboration): Promise<Collaboration> {
     const id = randomUUID();
-    const collaboration: Collaboration = { 
-      ...insertCollaboration, 
-      id, 
-      invitedAt: new Date()
+    const collaboration: Collaboration = {
+      id,
+      ownerId: insertCollaboration.ownerId,
+      collaboratorId: insertCollaboration.collaboratorId,
+      projectId: insertCollaboration.projectId || null,
+      taskId: insertCollaboration.taskId || null,
+      role: insertCollaboration.role || null,
+      permissions: insertCollaboration.permissions || {},
+      invitedAt: new Date(),
+      acceptedAt: null,
+      status: insertCollaboration.status || null
     };
     this.collaborationsList.set(id, collaboration);
     return collaboration;
@@ -710,13 +777,26 @@ export class MemStorage implements IStorage {
   async getActivityFeedForUser(userId: string): Promise<ActivityFeed[]> {
     return Array.from(this.activityFeedList.values())
       .filter(activity => activity.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .sort((a, b) => {
+        const timeA = a.createdAt?.getTime() || 0;
+        const timeB = b.createdAt?.getTime() || 0;
+        return timeB - timeA;
+      })
       .slice(0, 50); // Latest 50 activities
   }
 
   async createActivityFeed(insertActivity: InsertActivityFeed): Promise<ActivityFeed> {
     const id = randomUUID();
-    const activity: ActivityFeed = { ...insertActivity, id, createdAt: new Date() };
+    const activity: ActivityFeed = {
+      id,
+      userId: insertActivity.userId,
+      actorId: insertActivity.actorId,
+      action: insertActivity.action,
+      entityType: insertActivity.entityType,
+      entityId: insertActivity.entityId,
+      metadata: insertActivity.metadata || null,
+      createdAt: new Date()
+    };
     this.activityFeedList.set(id, activity);
     return activity;
   }
@@ -725,12 +805,22 @@ export class MemStorage implements IStorage {
   async getSavedFiltersForUser(userId: string): Promise<SavedFilter[]> {
     return Array.from(this.savedFiltersList.values())
       .filter(filter => filter.userId === userId)
-      .sort((a, b) => a.orderIndex - b.orderIndex);
+      .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
   }
 
   async createSavedFilter(insertFilter: InsertSavedFilter): Promise<SavedFilter> {
     const id = randomUUID();
-    const filter: SavedFilter = { ...insertFilter, id, createdAt: new Date() };
+    const filter: SavedFilter = {
+      id,
+      userId: insertFilter.userId,
+      name: insertFilter.name,
+      description: insertFilter.description || null,
+      filterConfig: insertFilter.filterConfig,
+      viewType: insertFilter.viewType || null,
+      isDefault: insertFilter.isDefault ?? null,
+      orderIndex: insertFilter.orderIndex || null,
+      createdAt: new Date()
+    };
     this.savedFiltersList.set(id, filter);
     return filter;
   }
